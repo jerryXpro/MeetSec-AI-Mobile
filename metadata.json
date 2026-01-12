@@ -1,0 +1,7 @@
+{
+  "name": "MeetSec-AI",
+  "description": "Real-time meeting transcription and collaboration using Google Gemini Multimodal Live API.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
