@@ -10,11 +10,11 @@ export enum ConnectionState {
 export interface Message {
   id: string;
   role: 'user' | 'model' | 'system';
-  speaker?: string; 
+  speaker?: string;
   text: string;
   timestamp: number;
   isPartial?: boolean;
-  audioUrl?: string; 
+  audioUrl?: string;
 }
 
 export interface MeetingSession {
@@ -38,7 +38,7 @@ export interface PresetCommand {
 }
 
 export interface AppSettings {
-  appName: string; 
+  appName: string;
   userName: string;
   provider: LLMProvider;
   apiKeys: {
@@ -55,8 +55,8 @@ export interface AppSettings {
   currentProfileId: string;
   recordingLanguage: 'zh-TW' | 'en-US' | 'ja-JP';
   voiceName: string;
-  selectedMicrophoneId: string; 
-  
+  selectedMicrophoneId: string;
+
   // Custom Presets
   presetCommands: PresetCommand[];
 
@@ -64,29 +64,32 @@ export interface AppSettings {
   uiFontSize: 'sm' | 'md' | 'lg';
   contentFontSize: 'sm' | 'md' | 'lg' | 'xl';
   fontFamily: 'sans' | 'serif' | 'mono';
-  
+
   // Layout Dimensions (New)
   sidebarWidth: number;
   assistantWidth: number;
+
+  // Audio Settings
+  noiseThreshold: number;
 
   // Theme Settings (Restored)
   themeMode: 'preset' | 'custom' | 'system';
   themePreset: ThemePreset;
   customColors: {
-      background: string;
-      surface: string;
-      primary: string;
-      secondary: string;
-      text: string;
-      icon: string; // Added icon color
+    background: string;
+    surface: string;
+    primary: string;
+    secondary: string;
+    text: string;
+    icon: string; // Added icon color
   };
 }
 
 export interface ProfileDocument {
   id: string;
   name: string;
-  content: string; 
-  type: string;    
+  content: string;
+  type: string;
   dateAdded: number;
 }
 
@@ -94,7 +97,7 @@ export interface KnowledgeProfile {
   id: string;
   name: string;
   description: string;
-  documents: ProfileDocument[]; 
+  documents: ProfileDocument[];
 }
 
 export interface AudioVisualizerData {

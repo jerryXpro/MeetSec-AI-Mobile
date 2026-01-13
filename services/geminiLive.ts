@@ -12,6 +12,7 @@ interface GeminiLiveOptions {
   useSystemAudio?: boolean;
   recordingLanguage?: string;
   microphoneId?: string;
+  noiseThreshold?: number;
   onStateChange: (state: ConnectionState) => void;
   onTranscript: (text: string, role: 'user' | 'model', isPartial: boolean, audioBlob?: Blob) => void;
   onAudioData: (volume: number) => void;
@@ -127,12 +128,12 @@ export class GeminiLiveService {
       }
 
       const baseSystemPrompt = `
-      你是 ${options.appName}，一個超越被動轉錄的會議生產力專家。
-      你的任務是：
-      1. 聆聽即時對話，理解語意與情境。
-      2. 準確轉錄所有語音內容。
-      3. 預測需求，隨時準備提供建議或任務追蹤。
-      4. 展現全面的記憶能力，保持對話情境的連續性。
+      你是 ${options.appName}，一個專業的會議紀錄員與被動觀察者。
+      
+      【核心指令】
+      1. **絕對保持安靜**：你的預設模式是「靜默聆聽」。除非使用者明確呼叫你的名字（例如：「小助理」、「Assistant」、「會議助手」）或向你提問，否則**絕對不要發言**。
+      2. **準確紀錄**：你的主要任務是聆聽並準確轉錄所有對話內容。
+      3. **被動回應**：只有在被呼叫時，才提供簡短、精確的協助或回答。不要主動提供建議，不要主動打招呼。
       `;
 
       let contextPrompt = "";
@@ -145,8 +146,6 @@ export class GeminiLiveService {
           ${options.previousContext}
           === 上次會議摘要結束 ===
 
-          \n【指令】
-          當你接收到「請回顧上次會議」的訊號（或會議剛開始）時，請主動向與會者打招呼，並「口頭朗讀」這份摘要的重點回顧。語氣要專業且流暢，幫助大家快速進入狀況。
           `;
       }
 
@@ -183,11 +182,7 @@ export class GeminiLiveService {
             this.startAudioStreaming(sessionPromise, combinedStream);
 
             if (options.previousContext) {
-              const session = await sessionPromise;
-              session.send({
-                parts: [{ text: "會議開始了。請向大家問好，並根據我提供的上次會議摘要，向大家朗讀重點回顧，幫助我們銜接進度。" }],
-                role: "user"
-              });
+              // Silent mode: AI passively receives context. No active greeting.
             }
           },
           onmessage: async (message: LiveServerMessage) => {
@@ -236,10 +231,11 @@ export class GeminiLiveService {
       }
       const rms = Math.sqrt(sum / inputData.length);
 
-      const NOISE_THRESHOLD = 0.01;
+      // Use dynamic threshold from options, default to 0.002 if not set
+      const threshold = this.currentOptions?.noiseThreshold !== undefined ? this.currentOptions.noiseThreshold : 0.002;
 
       let processedData = inputData;
-      if (this.isMuted || rms < NOISE_THRESHOLD) {
+      if (this.isMuted || rms < threshold) {
         processedData = new Float32Array(inputData.length);
       }
 
