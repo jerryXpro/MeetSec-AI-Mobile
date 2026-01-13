@@ -20,7 +20,9 @@ const Controls: React.FC = () => {
         toggleMute,
         isAiMuted,
         toggleAiMute,
-        fullAudioUrl // New: Audio download URL
+
+        fullAudioUrl, // New: Audio download URL
+        resetSession
     } = useLive();
 
     const { settings, updateSettings, setSidebarOpen, setSidebarTab } = useApp();
@@ -29,7 +31,7 @@ const Controls: React.FC = () => {
     const [useSystemAudio, setUseSystemAudio] = useState(false);
 
     const handleToggle = () => {
-        if (connectionState === ConnectionState.CONNECTED || connectionState === ConnectionState.CONNECTING) {
+        if (connectionState === ConnectionState.CONNECTED || connectionState === ConnectionState.CONNECTING || connectionState === ConnectionState.RECONNECTING) {
             disconnect();
         } else {
             connect(useSystemAudio);
@@ -66,8 +68,9 @@ const Controls: React.FC = () => {
         document.body.removeChild(a);
     };
 
+
     const isConnected = connectionState === ConnectionState.CONNECTED;
-    const isConnecting = connectionState === ConnectionState.CONNECTING;
+    const isConnecting = connectionState === ConnectionState.CONNECTING || connectionState === ConnectionState.RECONNECTING;
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
@@ -147,24 +150,25 @@ const Controls: React.FC = () => {
                 </div>
 
                 {/* Center: Main Control */}
-                <div className="flex flex-col items-center justify-center w-1/3 gap-2">
+                <div className="flex flex-col items-center justify-start w-1/3 min-h-[80px]">
+                    <div className="h-[4px]"></div>
                     <input
                         type="text"
                         value={meetingTitle}
                         onChange={(e) => setMeetingTitle(e.target.value)}
                         placeholder="輸入會議名稱..."
-                        className="bg-transparent border-b border-zinc-700 text-center text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500 w-48 transition-colors pb-1"
+                        className="bg-transparent border-b border-zinc-700 text-center text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500 w-48 transition-colors pb-1 mb-2"
                     />
 
                     <button
                         onClick={handleToggle}
                         className={`
-                relative group px-8 py-3 rounded-full font-semibold transition-all duration-300 transform active:scale-95 shadow-xl flex items-center gap-2
+                relative group px-8 py-3 rounded-full font-semibold transition-all duration-300 shadow-xl flex items-center gap-2
                 ${connectionState === ConnectionState.RECONNECTING
                                 ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/50 hover:shadow-amber-500/20'
                                 : isConnected
                                     ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/50 hover:shadow-red-500/20'
-                                    : 'bg-white text-black hover:bg-zinc-200 hover:scale-105'
+                                    : 'bg-white text-black hover:bg-zinc-200'
                             }
             `}
                     >
@@ -174,7 +178,7 @@ const Controls: React.FC = () => {
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                {connectionState === ConnectionState.RECONNECTING ? '重新連線中...' : '連線中...'}
+                                {connectionState === ConnectionState.RECONNECTING ? '中斷 (重連中...)' : '連線中...'}
                             </>
                         ) : isConnected ? (
                             <>
@@ -188,6 +192,20 @@ const Controls: React.FC = () => {
                             </>
                         )}
                     </button>
+
+                    {/* New Meeting Button Container - Reserved Space */}
+                    <div className="h-[40px] flex items-center justify-center mt-2">
+                        {!isConnected && !isConnecting && (messages.length > 0 || sessionDuration > 0) && (
+                            <button
+                                onClick={resetSession}
+                                className="bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700 px-4 py-2 rounded-full text-sm flex items-center gap-2 transition-all animate-fade-in-up"
+                                title="清除所有紀錄並開始新會議"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                開啟新會議
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Right: Config */}
@@ -197,8 +215,8 @@ const Controls: React.FC = () => {
                         onClick={toggleMute}
                         disabled={!isConnected}
                         className={`p-2 rounded-lg border transition-all ${isMuted
-                                ? 'bg-red-500 text-white border-red-500'
-                                : 'bg-zinc-900 border-zinc-800 text-icon hover:text-white hover:border-zinc-700'
+                            ? 'bg-red-500 text-white border-red-500'
+                            : 'bg-zinc-900 border-zinc-800 text-icon hover:text-white hover:border-zinc-700'
                             } ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title={isMuted ? "解除靜音 (麥克風)" : "靜音麥克風 (防止打斷 AI)"}
                     >
@@ -218,8 +236,8 @@ const Controls: React.FC = () => {
                     <button
                         onClick={toggleAiMute}
                         className={`p-2 rounded-lg border transition-all ${isAiMuted
-                                ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
-                                : 'bg-zinc-900 border-zinc-800 text-icon hover:text-white hover:border-zinc-700'
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
+                            : 'bg-zinc-900 border-zinc-800 text-icon hover:text-white hover:border-zinc-700'
                             }`}
                         title={isAiMuted ? "AI 僅聆聽模式 (不會發話)" : "AI 語音模式 (可對話)"}
                     >
@@ -246,7 +264,7 @@ const Controls: React.FC = () => {
                     <button
                         onClick={() => !isConnected && setUseSystemAudio(!useSystemAudio)}
                         disabled={isConnected}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[0.9em] transition-colors ${useSystemAudio ? 'bg-blue-500/20 border-blue-500/50 text-blue-300' : 'bg-zinc-900 border-zinc-800 text-icon hover:text-zinc-300'}`}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[0.9em] transition-colors whitespace-nowrap ${useSystemAudio ? 'bg-blue-500/20 border-blue-500/50 text-blue-300' : 'bg-zinc-900 border-zinc-800 text-icon hover:text-zinc-300'}`}
                         title="錄製系統音訊 (需要螢幕分享)"
                     >
                         {useSystemAudio ? (

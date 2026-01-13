@@ -43,6 +43,7 @@ export class GeminiLiveService {
   private maxRetries = 3;
   private currentOptions: GeminiLiveOptions | null = null;
   private reconnectTimeoutId: any = null;
+  private connectionStartTime = 0;
 
   private currentInputTranscription = '';
   private currentOutputTranscription = '';
@@ -178,7 +179,7 @@ export class GeminiLiveService {
           onopen: async () => {
             options.onStateChange(ConnectionState.CONNECTED);
             this.active = true;
-            this.retryCount = 0; // Reset retries on successful connection
+            this.connectionStartTime = Date.now();
             this.startAudioStreaming(sessionPromise, combinedStream);
 
             if (options.previousContext) {
@@ -190,6 +191,11 @@ export class GeminiLiveService {
           },
           onclose: () => {
             this.active = false;
+            // Only reset retry count if the session lasted longer than 5 seconds (stable connection)
+            if (Date.now() - this.connectionStartTime > 5000) {
+              this.retryCount = 0;
+            }
+
             if (!this.isUserInitiatedStop) {
               this.handleUnexpectedDisconnect();
             } else {

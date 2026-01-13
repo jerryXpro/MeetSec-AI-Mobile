@@ -39,6 +39,7 @@ interface LiveContextType {
   isAiMuted: boolean;
   toggleAiMute: () => void;
   fullAudioUrl: string | null;
+  resetSession: () => void;
 }
 
 const LiveContext = createContext<LiveContextType | undefined>(undefined);
@@ -351,6 +352,19 @@ export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const resetSession = async () => {
+    if (connectionState !== ConnectionState.DISCONNECTED) {
+      await disconnect();
+    }
+    setMessages([]);
+    setSessionDuration(0);
+    setSessionStartTime(null);
+    setMeetingTitle("");
+    setFullAudioUrl(null);
+    clearTemporaryFiles();
+    setError(null);
+  };
+
   return (
     <LiveContext.Provider value={{
       isConnected: connectionState === ConnectionState.CONNECTED,
@@ -379,7 +393,8 @@ export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       toggleMute,
       isAiMuted,
       toggleAiMute,
-      fullAudioUrl
+      fullAudioUrl,
+      resetSession
     }}>
       {children}
     </LiveContext.Provider>
