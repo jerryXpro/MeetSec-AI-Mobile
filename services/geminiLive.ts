@@ -1,5 +1,5 @@
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
-import { createPcmBlob, base64ToBytes, decodeAudioData, AudioMixer, encodeWAV } from '../utils/audioUtils';
+import { createPcmBlob, base64ToBytes, decodeAudioData, AudioMixer, encodeWAV, downsampleBuffer } from '../utils/audioUtils';
 import { ConnectionState } from '../types';
 
 interface GeminiLiveOptions {
@@ -76,7 +76,8 @@ export class GeminiLiveService {
 
       this.ai = new GoogleGenAI({ apiKey: options.apiKey });
 
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      // Use system default sample rate (usually 44.1k or 48k) for better recording quality
+      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
 
       const audioConstraints = {
         echoCancellation: true,
@@ -231,18 +232,23 @@ export class GeminiLiveService {
 
       const inputData = e.inputBuffer.getChannelData(0);
 
+      const inputSampleRate = this.audioContext?.sampleRate || 16000;
+
+      // Downsample to 16kHz for AI processing if needed
+      const downsampledData = downsampleBuffer(inputData, inputSampleRate, 16000);
+
       let sum = 0;
-      for (let i = 0; i < inputData.length; i++) {
-        sum += inputData[i] * inputData[i];
+      for (let i = 0; i < downsampledData.length; i++) {
+        sum += downsampledData[i] * downsampledData[i];
       }
-      const rms = Math.sqrt(sum / inputData.length);
+      const rms = Math.sqrt(sum / downsampledData.length);
 
       // Use dynamic threshold from options, default to 0.002 if not set
       const threshold = this.currentOptions?.noiseThreshold !== undefined ? this.currentOptions.noiseThreshold : 0.002;
 
-      let processedData = inputData;
+      let processedData = downsampledData;
       if (this.isMuted || rms < threshold) {
-        processedData = new Float32Array(inputData.length);
+        processedData = new Float32Array(downsampledData.length); // Silence
       }
 
       const inputDataCopy = new Float32Array(processedData);

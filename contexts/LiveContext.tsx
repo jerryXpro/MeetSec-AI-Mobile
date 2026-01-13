@@ -18,6 +18,7 @@ interface LiveContextType {
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   updateMessage: (id: string, updates: Partial<Message>) => void;
   renameSpeaker: (oldName: string, newName: string) => void;
+  updateMessageSpeaker: (id: string, newName: string) => void;
   volume: number;
   connect: (useSystemAudio?: boolean) => Promise<void>;
   disconnect: () => Promise<void>;
@@ -132,6 +133,12 @@ export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       return hasChange ? updated : msg;
     }));
+  };
+
+  const updateMessageSpeaker = (id: string, newName: string) => {
+    setMessages(prev => prev.map(msg =>
+      msg.id === id ? { ...msg, speaker: newName } : msg
+    ));
   };
 
   const toggleMute = () => {
@@ -374,6 +381,7 @@ export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setMessages,
       updateMessage,
       renameSpeaker,
+      updateMessageSpeaker,
       volume,
       connect,
       disconnect,
