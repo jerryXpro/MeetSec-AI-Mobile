@@ -60,6 +60,9 @@ export interface AppSettings {
   // Custom Presets
   presetCommands: PresetCommand[];
 
+  // Behavior Settings
+  aiInteractionMode: 'passive' | 'active';
+
   // Display Settings
   uiFontSize: 'sm' | 'md' | 'lg';
   contentFontSize: 'sm' | 'md' | 'lg' | 'xl';

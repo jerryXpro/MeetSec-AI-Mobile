@@ -84,6 +84,10 @@ const defaultSettings: AppSettings = {
   voiceName: 'Aoede',
   selectedMicrophoneId: '',
 
+  selectedMicrophoneId: '',
+
+  aiInteractionMode: 'passive',
+
   presetCommands: defaultPresets,
 
   uiFontSize: 'md',

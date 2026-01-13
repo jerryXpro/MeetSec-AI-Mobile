@@ -429,6 +429,27 @@ const Sidebar: React.FC = () => {
                                 <span className="text-[0.8em] text-zinc-500 block">使用者名稱</span>
                                 <input type="text" value={settings.userName} onChange={(e) => updateSettings({ userName: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none" placeholder="User" />
                             </div>
+
+                            <div className="space-y-2">
+                                <span className="text-[0.8em] text-zinc-500 block">AI 互動模式</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        onClick={() => updateSettings({ aiInteractionMode: 'passive' })}
+                                        className={`p-2 rounded border text-left transition-all ${settings.aiInteractionMode === 'passive' ? 'bg-primary/20 border-primary text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
+                                    >
+                                        <div className="font-medium text-sm mb-0.5">被動模式</div>
+                                        <div className="text-[0.7em] opacity-80">僅在被呼叫時回應</div>
+                                    </button>
+                                    <button
+                                        onClick={() => updateSettings({ aiInteractionMode: 'active' })}
+                                        className={`p-2 rounded border text-left transition-all ${settings.aiInteractionMode === 'active' ? 'bg-amber-500/20 border-amber-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
+                                    >
+                                        <div className="font-medium text-sm mb-0.5">主動模式</div>
+                                        <div className="text-[0.7em] opacity-80">自動參與討論</div>
+                                    </button>
+                                </div>
+                            </div>
+
                             <div className="space-y-2">
                                 <span className="text-[0.8em] text-zinc-500 block">錄製與轉錄語言</span>
                                 <select value={settings.recordingLanguage} onChange={(e) => updateSettings({ recordingLanguage: e.target.value as any })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none">

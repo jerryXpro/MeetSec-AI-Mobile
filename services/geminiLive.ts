@@ -13,6 +13,7 @@ interface GeminiLiveOptions {
   recordingLanguage?: string;
   microphoneId?: string;
   noiseThreshold?: number;
+  interactionMode?: 'passive' | 'active';
   onStateChange: (state: ConnectionState) => void;
   onTranscript: (text: string, role: 'user' | 'model', isPartial: boolean, audioBlob?: Blob) => void;
   onAudioData: (volume: number) => void;
@@ -129,14 +130,32 @@ export class GeminiLiveService {
         console.error("Failed to initialize MediaRecorder:", e);
       }
 
-      const baseSystemPrompt = `
-      你是 ${options.appName}，一個專業的會議紀錄員與被動觀察者。
-      
-      【核心指令】
-      1. **絕對保持安靜**：你的預設模式是「靜默聆聽」。除非使用者明確呼叫你的名字（例如：「小助理」、「Assistant」、「會議助手」）或向你提問，否則**絕對不要發言**。
-      2. **準確紀錄**：你的主要任務是聆聽並準確轉錄所有對話內容。
-      3. **被動回應**：只有在被呼叫時，才提供簡短、精確的協助或回答。不要主動提供建議，不要主動打招呼。
-      `;
+      let modelInstructions = "";
+      if (options.interactionMode === 'active') {
+        modelInstructions = `
+          你是 ${options.appName}，一個專業且積極的會議協作者。
+
+          【核心指令 - 主動模式】
+          1. **積極參與**：你不只是紀錄者，更是與會者。請仔細聆聽討論，並在適當時機**簡短地**提供價值。
+          2. **適時介入**：
+             - 當發現討論偏題時，溫和地提醒。
+             - 當有人提出問題無人回答時，嘗試提供答案。
+             - 當討論陷入僵局時，提供新的觀點或總結目前進度。
+          3. **保持專業**：雖然主動，但不要過度打斷或是廢話。發言應精簡有力。
+          `;
+      } else {
+        // Default to Passive
+        modelInstructions = `
+          你是 ${options.appName}，一個專業的會議紀錄員與被動觀察者。
+          
+          【核心指令 - 被動模式】
+          1. **絕對保持安靜**：你的預設模式是「靜默聆聽」。除非使用者明確呼叫你的名字（例如：「小助理」、「Assistant」、「會議助手」）或向你提問，否則**絕對不要發言**。
+          2. **準確紀錄**：你的主要任務是聆聽並準確轉錄所有對話內容。
+          3. **被動回應**：只有在被呼叫時，才提供簡短、精確的協助或回答。不要主動提供建議，不要主動打招呼。
+          `;
+      }
+
+      const baseSystemPrompt = modelInstructions;
 
       let contextPrompt = "";
       if (options.previousContext) {

@@ -214,6 +214,8 @@ export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       useSystemAudio,
       recordingLanguage: settings.recordingLanguage,
       microphoneId: settings.selectedMicrophoneId,
+      noiseThreshold: settings.noiseThreshold,
+      interactionMode: settings.aiInteractionMode,
       onStateChange: (state) => {
         setConnectionState(state);
 
