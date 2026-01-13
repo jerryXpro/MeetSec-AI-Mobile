@@ -1,4 +1,5 @@
-import { Blob } from '@google/genai';
+// @ts-ignore
+// import * as lamejs from 'lamejs';
 
 export function base64ToBytes(base64: string): Uint8Array {
   const binaryString = atob(base64);
@@ -38,7 +39,13 @@ export async function decodeAudioData(
   return buffer;
 }
 
-export function createPcmBlob(data: Float32Array): Blob {
+export interface AudioData {
+  data: string;
+  mimeType: string;
+  nativeBlob?: Blob;
+}
+
+export function createPcmBlob(data: Float32Array): AudioData {
   const l = data.length;
   const int16 = new Int16Array(l);
   for (let i = 0; i < l; i++) {
@@ -52,7 +59,7 @@ export function createPcmBlob(data: Float32Array): Blob {
 }
 
 // New: Encode raw PCM samples to WAV format so they can be played in <audio> elements
-export function encodeWAV(samples: Float32Array, sampleRate: number = 16000): Blob {
+export function encodeWAV(samples: Float32Array, sampleRate: number = 16000): AudioData {
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
 
@@ -99,11 +106,96 @@ export function encodeWAV(samples: Float32Array, sampleRate: number = 16000): Bl
   }
 
   return {
-    data: "", // Not used here, strictly for Type compatibility if needed elsewhere
+    data: "",
     mimeType: "audio/wav",
-    // @ts-ignore - native Blob property
+    // @ts-ignore
     nativeBlob: new window.Blob([view], { type: 'audio/wav' })
   };
+}
+
+export function encodeWAVToBlob(samples: Float32Array, sampleRate: number = 16000): Blob {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+
+  const writeString = (offset: number, string: string) => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  };
+
+  /* RIFF identifier */
+  writeString(0, 'RIFF');
+  /* RIFF chunk length */
+  view.setUint32(4, 36 + samples.length * 2, true);
+  /* RIFF type */
+  writeString(8, 'WAVE');
+  /* format chunk identifier */
+  writeString(12, 'fmt ');
+  /* format chunk length */
+  view.setUint32(16, 16, true);
+  /* sample format (raw) */
+  view.setUint16(20, 1, true);
+  /* channel count */
+  view.setUint16(22, 1, true);
+  /* sample rate */
+  view.setUint32(24, sampleRate, true);
+  /* byte rate (sample rate * block align) */
+  view.setUint32(28, sampleRate * 2, true);
+  /* block align (channel count * bytes per sample) */
+  view.setUint16(32, 2, true);
+  /* bits per sample */
+  view.setUint16(34, 16, true);
+  /* data chunk identifier */
+  writeString(36, 'data');
+  /* data chunk length */
+  view.setUint32(40, samples.length * 2, true);
+
+  const length = samples.length;
+  let offset = 44;
+  for (let i = 0; i < length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    offset += 2;
+  }
+
+  return new window.Blob([view], { type: 'audio/wav' });
+}
+
+export function encodeMP3(samples: Float32Array, sampleRate: number = 44100): Blob {
+  // Use global lamejs loaded via script tag
+  // @ts-ignore
+  const lame = (window as any).lamejs;
+  if (!lame) {
+    console.error("lamejs not loaded globally");
+    throw new Error("lamejs library not loaded. Check script tag.");
+  }
+
+  const Mp3Encoder = lame.Mp3Encoder;
+  const channels = 1; // Mono
+  const kbps = 128;
+  const mp3encoder = new Mp3Encoder(channels, sampleRate, kbps);
+
+  // Convert Float32 to Int16
+  const sampleData = new Int16Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    sampleData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+  }
+
+  const mp3Data: Int8Array[] = [];
+
+  const mp3buf = mp3encoder.encodeBuffer(sampleData);
+  if (mp3buf.length > 0) {
+    mp3Data.push(mp3buf);
+  }
+
+  const mp3end = mp3encoder.flush();
+  if (mp3end.length > 0) {
+    mp3Data.push(mp3end);
+  }
+
+  // Cast to any to avoid strict ArrayBufferLike mismatch with BlobPart
+  return new Blob(mp3Data as any[], { type: 'audio/mp3' });
 }
 
 // New: Mixer for System + Mic

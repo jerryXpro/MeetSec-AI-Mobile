@@ -66,6 +66,7 @@ export interface AppSettings {
   // Display Settings
   uiFontSize: 'sm' | 'md' | 'lg';
   contentFontSize: 'sm' | 'md' | 'lg' | 'xl';
+  navFontSize: number; // New: Manual control for navigation font size (px)
   fontFamily: 'sans' | 'serif' | 'mono';
 
   // Layout Dimensions (New)

@@ -23,9 +23,15 @@ interface AppContextType {
   setSidebarTab: (tab: SidebarTab) => void;
   isSidebarOpen: boolean;
   setSidebarOpen: (isOpen: boolean) => void;
+
+  viewMode: 'meeting' | 'recording';
+  setViewMode: (mode: 'meeting' | 'recording') => void;
 }
 
-// Helper to convert Hex to RGB channels
+
+
+
+
 const hexToRgb = (hex: string): string => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result
@@ -84,7 +90,6 @@ const defaultSettings: AppSettings = {
   voiceName: 'Aoede',
   selectedMicrophoneId: '',
 
-  selectedMicrophoneId: '',
 
   aiInteractionMode: 'passive',
 
@@ -92,6 +97,7 @@ const defaultSettings: AppSettings = {
 
   uiFontSize: 'md',
   contentFontSize: 'md',
+  navFontSize: 11,
   fontFamily: 'sans',
   themeMode: 'custom',
   themePreset: 'ocean',
@@ -151,6 +157,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('history');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const [viewMode, setViewMode] = useState<'meeting' | 'recording'>('meeting');
 
   useEffect(() => {
     localStorage.setItem('proactor_settings', JSON.stringify(settings));
@@ -273,7 +280,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       sidebarTab,
       setSidebarTab,
       isSidebarOpen,
-      setSidebarOpen
+      setSidebarOpen,
+      viewMode,
+      setViewMode
     }}>
       {children}
     </AppContext.Provider>

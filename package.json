@@ -9,13 +9,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/genai": "^1.35.0",
+    "jspdf": "2.5.1",
+    "lamejs": "^1.2.1",
+    "mammoth": "1.6.0",
+    "marked": "12.0.0",
+    "pdfjs-dist": "3.11.174",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "@google/genai": "^1.35.0",
-    "marked": "12.0.0",
-    "jspdf": "2.5.1",
-    "pdfjs-dist": "3.11.174",
-    "mammoth": "1.6.0",
     "xlsx": "0.18.5"
   },
   "devDependencies": {

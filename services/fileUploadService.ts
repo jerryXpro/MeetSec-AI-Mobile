@@ -26,13 +26,13 @@ export const transcribeAudioFile = async (
 
   // 3. Prepare Prompt
   // Use user-configured model, default to gemini-3-flash-preview if undefined
-  const modelName = settings.geminiTranscriptionModel || 'gemini-3-flash-preview'; 
+  const modelName = settings.geminiTranscriptionModel || 'gemini-3-flash-preview';
 
   const languageInstruction = settings.recordingLanguage === 'ja-JP'
     ? "The audio is in Japanese. Transcribe in Japanese."
     : settings.recordingLanguage === 'en-US'
-    ? "The audio is in English. Transcribe in English."
-    : "The audio is in Traditional Chinese (Taiwan). Transcribe in Traditional Chinese.";
+      ? "The audio is in English. Transcribe in English."
+      : "The audio is in Traditional Chinese (Taiwan). Transcribe in Traditional Chinese.";
 
   const systemPrompt = `
     You are an expert audio transcriber specializing in **Speaker Diarization**.
@@ -66,17 +66,20 @@ export const transcribeAudioFile = async (
   const ext = file.name.split('.').pop()?.toLowerCase();
 
   if (!mimeType || mimeType === 'audio/x-m4a') {
-      if (ext === 'mp3') mimeType = 'audio/mp3';
-      else if (ext === 'wav') mimeType = 'audio/wav';
-      else if (ext === 'aac') mimeType = 'audio/aac';
-      else if (ext === 'm4a') mimeType = 'audio/mp4'; // Gemini treats m4a usually as audio/mp4 container
-      else if (ext === 'flac') mimeType = 'audio/flac';
-      else if (ext === 'ogg') mimeType = 'audio/ogg';
-      else if (ext === 'aiff') mimeType = 'audio/aiff';
-      else if (ext === 'webm') mimeType = 'audio/webm';
+    if (ext === 'mp3') mimeType = 'audio/mp3';
+    else if (ext === 'wav') mimeType = 'audio/wav';
+    else if (ext === 'aac') mimeType = 'audio/aac';
+    else if (ext === 'm4a') mimeType = 'audio/mp4'; // Gemini treats m4a usually as audio/mp4 container
+    else if (ext === 'flac') mimeType = 'audio/flac';
+    else if (ext === 'ogg') mimeType = 'audio/ogg';
+    else if (ext === 'aiff') mimeType = 'audio/aiff';
+    else if (ext === 'webm') mimeType = 'audio/webm';
   }
 
   // 4. Call API
+  console.log(`[Transcribe] Uploading file: ${file.name}, Size: ${file.size} bytes`);
+  console.log(`[Transcribe] Model: ${modelName}, MimeType: ${mimeType}`);
+
   try {
     const response = await ai.models.generateContent({
       model: modelName,
@@ -97,7 +100,13 @@ export const transcribeAudioFile = async (
 
     return response.text || "無法識別音訊內容。";
   } catch (error: any) {
-    console.error("Transcription Error:", error);
-    throw new Error(error.message || "音檔轉錄失敗");
+    console.error("Transcription Error Full:", JSON.stringify(error, null, 2));
+
+    // Check if error is 500
+    if (error.message?.includes('500') || error.status === 500) {
+      console.error("Internal Error detected. Checking constraints.");
+    }
+
+    throw new Error(`轉錄失敗: ${error.message || "未知錯誤"}`);
   }
 };

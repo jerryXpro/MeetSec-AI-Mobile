@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useEffect } from 'react';
 import { useApp, THEME_PRESETS } from '../contexts/AppContext';
 import { useLive } from '../contexts/LiveContext';
@@ -27,7 +28,9 @@ const Sidebar: React.FC = () => {
         sidebarTab,
         setSidebarTab,
         isSidebarOpen,
-        setSidebarOpen
+        setSidebarOpen,
+        viewMode,
+        setViewMode
     } = useApp();
 
     // Updated hook usage for new file list
@@ -130,7 +133,7 @@ const Sidebar: React.FC = () => {
         if (!file || !editingProfileId) return;
 
         if (file.size > MAX_FILE_SIZE) {
-            alert(`檔案過大 (${(file.size / 1024 / 1024).toFixed(1)}MB)。請上傳小於 10MB 的檔案。`);
+            alert(`檔案過大(${(file.size / 1024 / 1024).toFixed(1)}MB)。請上傳小於 10MB 的檔案。`);
             if (profileFileInputRef.current) profileFileInputRef.current.value = '';
             return;
         }
@@ -159,7 +162,7 @@ const Sidebar: React.FC = () => {
         }
 
         if (file.size > MAX_FILE_SIZE) {
-            alert(`檔案過大 (${(file.size / 1024 / 1024).toFixed(1)}MB)。請上傳小於 10MB 的檔案。`);
+            alert(`檔案過大(${(file.size / 1024 / 1024).toFixed(1)}MB)。請上傳小於 10MB 的檔案。`);
             if (contextFileInputRef.current) contextFileInputRef.current.value = '';
             return;
         }
@@ -181,7 +184,7 @@ const Sidebar: React.FC = () => {
             }
             onSuccess(text);
         } catch (error: any) {
-            alert(`上傳失敗: ${error.message}`);
+            alert(`上傳失敗: ${error.message} `);
             console.error(error);
         } finally {
             setIsParsing(false);
@@ -252,10 +255,68 @@ const Sidebar: React.FC = () => {
                 </button>
             </div>
 
-            <div className="flex p-2 gap-1 bg-zinc-900/50">
-                <button onClick={() => setSidebarTab('history')} className={`flex-1 py-2 font-medium rounded-md transition-colors ${sidebarTab === 'history' ? 'bg-zinc-800 text-white shadow-sm' : 'text-icon hover:text-primary'}`}>歷史紀錄</button>
-                <button onClick={() => setSidebarTab('profiles')} className={`flex-1 py-2 font-medium rounded-md transition-colors ${sidebarTab === 'profiles' ? 'bg-zinc-800 text-white shadow-sm' : 'text-icon hover:text-primary'}`}>設定檔</button>
-                <button onClick={() => setSidebarTab('settings')} className={`flex-1 py-2 font-medium rounded-md transition-colors ${sidebarTab === 'settings' ? 'bg-zinc-800 text-white shadow-sm' : 'text-icon hover:text-primary'}`}>設定</button>
+            {/* Mode Navigation */}
+            <div className="flex flex-col gap-1 p-3">
+                <div style={{ fontSize: `${settings.navFontSize}px` }} className="font-bold text-zinc-500 uppercase tracking-wider px-2 mb-1">工作模式</div>
+
+                <button
+                    onClick={() => setViewMode('meeting')}
+                    className={`group w-full flex items-center gap-3 p-3 rounded-xl transition-all border ${viewMode === 'meeting' ? 'bg-zinc-800 border-zinc-700 shadow-sm text-white' : 'border-transparent text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
+                >
+                    <div className={`p-2 rounded-lg ${viewMode === 'meeting' ? 'bg-blue-500/20 text-blue-400' : 'bg-zinc-800 text-zinc-500 group-hover:bg-zinc-700 group-hover:text-zinc-300'} transition-colors`}>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    </div>
+                    <div className="flex flex-col items-start">
+                        <span className="text-sm font-semibold">會議助手</span>
+                        <span style={{ fontSize: `${settings.navFontSize}px` }} className="opacity-60 font-normal">AI 即時轉錄與分析</span>
+                    </div>
+                    {viewMode === 'meeting' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></div>}
+                </button>
+
+                <button
+                    onClick={() => setViewMode('recording')}
+                    className={`group w-full flex items-center gap-3 p-3 rounded-xl transition-all border ${viewMode === 'recording' ? 'bg-zinc-800 border-zinc-700 shadow-sm text-white' : 'border-transparent text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
+                >
+                    <div className={`p-2 rounded-lg ${viewMode === 'recording' ? 'bg-red-500/20 text-red-400' : 'bg-zinc-800 text-zinc-500 group-hover:bg-zinc-700 group-hover:text-zinc-300'} transition-colors`}>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                    </div>
+                    <div className="flex flex-col items-start">
+                        <span className="text-sm font-semibold">獨立錄音</span>
+                        <span style={{ fontSize: `${settings.navFontSize}px` }} className="opacity-60 font-normal">純淨錄音 • 本地儲存</span>
+                    </div>
+                    {viewMode === 'recording' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>}
+                </button>
+            </div>
+
+            <div className="h-px bg-zinc-800/50 mx-4 my-1"></div>
+
+            {/* Management Tabs */}
+            <div className="flex flex-col gap-1 p-3 pt-0">
+                <div style={{ fontSize: `${settings.navFontSize}px` }} className="font-bold text-zinc-500 uppercase tracking-wider px-2 mb-1 mt-2">功能管理</div>
+
+                <button
+                    onClick={() => setSidebarTab('history')}
+                    className={`group w-full flex items-center gap-3 p-2.5 rounded-lg transition-all ${sidebarTab === 'history' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
+                >
+                    <svg className={`w-4 h-4 ${sidebarTab === 'history' ? 'text-primary' : 'text-zinc-500 group-hover:text-zinc-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span className="text-sm font-medium">歷史紀錄</span>
+                </button>
+
+                <button
+                    onClick={() => setSidebarTab('profiles')}
+                    className={`group w-full flex items-center gap-3 p-2.5 rounded-lg transition-all ${sidebarTab === 'profiles' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
+                >
+                    <svg className={`w-4 h-4 ${sidebarTab === 'profiles' ? 'text-primary' : 'text-zinc-500 group-hover:text-zinc-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                    <span className="text-sm font-medium">知識庫設定檔</span>
+                </button>
+
+                <button
+                    onClick={() => setSidebarTab('settings')}
+                    className={`group w-full flex items-center gap-3 p-2.5 rounded-lg transition-all ${sidebarTab === 'settings' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
+                >
+                    <svg className={`w-4 h-4 ${sidebarTab === 'settings' ? 'text-primary' : 'text-zinc-500 group-hover:text-zinc-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <span className="text-sm font-medium">系統設定</span>
+                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
@@ -298,7 +359,7 @@ const Sidebar: React.FC = () => {
 
                         <div className="space-y-3">
                             {profiles.map(p => (
-                                <div key={p.id} className={`rounded-lg border transition-all ${settings.currentProfileId === p.id ? 'border-primary/50 bg-primary/10' : 'border-zinc-800 bg-zinc-900/30'}`}>
+                                <div key={p.id} className={`rounded - lg border transition - all ${settings.currentProfileId === p.id ? 'border-primary/50 bg-primary/10' : 'border-zinc-800 bg-zinc-900/30'} `}>
                                     <div className="p-3 cursor-pointer" onClick={() => updateSettings({ currentProfileId: p.id })}>
                                         <div className="flex items-center justify-between mb-1">
                                             <span className="font-medium text-[0.95em]">{p.name}</span>
@@ -327,7 +388,7 @@ const Sidebar: React.FC = () => {
                             <label className="text-[0.85em] font-semibold text-zinc-400 uppercase tracking-wider">外觀主題 (點擊套用範本)</label>
                             <div className="space-y-2">
                                 {(Object.keys(THEME_PRESETS) as ThemePreset[]).map(key => (
-                                    <button key={key} onClick={() => applyPreset(key)} className={`w-full flex items-center justify-between p-2 rounded-lg border transition-all ${settings.themePreset === key ? 'border-primary bg-primary/10 text-white' : 'border-zinc-800 bg-zinc-900/50 text-icon hover:bg-zinc-800'}`}>
+                                    <button key={key} onClick={() => applyPreset(key)} className={`w - full flex items - center justify - between p - 2 rounded - lg border transition - all ${settings.themePreset === key ? 'border-primary bg-primary/10 text-white' : 'border-zinc-800 bg-zinc-900/50 text-icon hover:bg-zinc-800'} `}>
                                         <div className="flex items-center gap-2">
                                             <div className="w-3 h-3 rounded-full" style={{ background: THEME_PRESETS[key].colors.primary }}></div>
                                             <span className="text-sm">{THEME_PRESETS[key].name}</span>
@@ -435,14 +496,14 @@ const Sidebar: React.FC = () => {
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
                                         onClick={() => updateSettings({ aiInteractionMode: 'passive' })}
-                                        className={`p-2 rounded border text-left transition-all ${settings.aiInteractionMode === 'passive' ? 'bg-primary/20 border-primary text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
+                                        className={`p - 2 rounded border text - left transition - all ${settings.aiInteractionMode === 'passive' ? 'bg-primary/20 border-primary text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-600'} `}
                                     >
                                         <div className="font-medium text-sm mb-0.5">被動模式</div>
                                         <div className="text-[0.7em] opacity-80">僅在被呼叫時回應</div>
                                     </button>
                                     <button
                                         onClick={() => updateSettings({ aiInteractionMode: 'active' })}
-                                        className={`p-2 rounded border text-left transition-all ${settings.aiInteractionMode === 'active' ? 'bg-amber-500/20 border-amber-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
+                                        className={`p - 2 rounded border text - left transition - all ${settings.aiInteractionMode === 'active' ? 'bg-amber-500/20 border-amber-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-600'} `}
                                     >
                                         <div className="font-medium text-sm mb-0.5">主動模式</div>
                                         <div className="text-[0.7em] opacity-80">自動參與討論</div>
@@ -557,124 +618,162 @@ const Sidebar: React.FC = () => {
                                 </div>
                                 <p className="text-[0.7em] text-zinc-500">這些檔案僅供本次連線參考，不會永久儲存。</p>
                             </div>
-                        </div>
+                            <div className="space-y-4">
+                                <label className="text-[0.85em] font-semibold text-zinc-400 uppercase tracking-wider">介面顯示</label>
 
-                        <div className="border-t border-zinc-800"></div>
-
-                        {/* 3. AI 模型設定 (AI Models) */}
-                        <div className="space-y-3">
-                            <label className="text-[0.85em] font-semibold text-zinc-400 uppercase tracking-wider">AI 模型設定</label>
-
-                            <div className="space-y-2 mb-3">
-                                <span className="text-[0.8em] text-zinc-500 block">分析與對話供應商</span>
-                                <select value={settings.provider} onChange={(e) => updateSettings({ provider: e.target.value as LLMProvider })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none">
-                                    <option value="gemini">Google Gemini</option>
-                                    <option value="openai">OpenAI (GPT)</option>
-                                    <option value="ollama">Ollama (Local)</option>
-                                    <option value="lmstudio">LM Studio (Local)</option>
-                                    <option value="anythingllm">AnythingLLM</option>
-                                </select>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between">
+                                        <span className="text-[0.8em] text-zinc-500">側邊欄文字大小 (px)</span>
+                                        <span className="text-[0.8em] font-mono text-zinc-400">{settings.navFontSize || 11}px</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="9"
+                                        max="16"
+                                        step="1"
+                                        value={settings.navFontSize || 11}
+                                        onChange={(e) => updateSettings({ navFontSize: parseInt(e.target.value) })}
+                                        className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <span className="text-[0.8em] text-zinc-500 block">轉錄文字大小</span>
+                                    <div className="flex bg-zinc-900 rounded border border-zinc-700 p-1">
+                                        {(['sm', 'md', 'lg', 'xl'] as const).map(size => (
+                                            <button
+                                                key={size}
+                                                onClick={() => updateSettings({ contentFontSize: size })}
+                                                className={`flex-1 py-1 text-xs rounded transition-colors ${settings.contentFontSize === size ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                            >
+                                                {size.toUpperCase()}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Provider Specific Settings */}
-                            {settings.provider === 'gemini' && (
-                                <div className="space-y-3 animate-fade-in-up">
-                                    <div className="space-y-1">
-                                        <span className="text-[0.8em] text-zinc-500">API Key</span>
-                                        <input type="password" value={settings.apiKeys.gemini} onChange={(e) => updateSettings({ apiKeys: { ...settings.apiKeys, gemini: e.target.value } })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none" placeholder="sk-..." />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <span className="text-[0.8em] text-zinc-500">轉錄優化模型 (Transcription)</span>
-                                        <select
-                                            value={settings.geminiTranscriptionModel}
-                                            onChange={(e) => updateSettings({ geminiTranscriptionModel: e.target.value })}
-                                            className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none"
-                                        >
-                                            {GEMINI_MODELS.map(m => (
-                                                <option key={m.value} value={m.value}>{m.label}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <span className="text-[0.8em] text-zinc-500">分析與對話模型 (Analysis)</span>
-                                        <select
-                                            value={settings.geminiAnalysisModel}
-                                            onChange={(e) => updateSettings({ geminiAnalysisModel: e.target.value })}
-                                            className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none"
-                                        >
-                                            {GEMINI_MODELS.map(m => (
-                                                <option key={m.value} value={m.value}>{m.label}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-                            )}
+                            <div className="border-t border-zinc-800"></div>
 
-                            {settings.provider === 'openai' && (
-                                <div className="space-y-3 animate-fade-in-up">
-                                    <div className="space-y-1">
-                                        <span className="text-[0.8em] text-zinc-500">OpenAI API Key</span>
-                                        <input type="password" value={settings.apiKeys.openai} onChange={(e) => updateSettings({ apiKeys: { ...settings.apiKeys, openai: e.target.value } })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none" placeholder="sk-..." />
-                                    </div>
-                                </div>
-                            )}
+                            {/* 3. AI 模型設定 (AI Models) */}
+                            <div className="space-y-3">
+                                <label className="text-[0.85em] font-semibold text-zinc-400 uppercase tracking-wider">AI 模型設定</label>
 
-                            {(settings.provider === 'ollama') && (
-                                <div className="space-y-3 animate-fade-in-up">
-                                    <div className="space-y-1">
-                                        <span className="text-[0.8em] text-zinc-500">Ollama URL</span>
-                                        <input type="text" value={settings.ollamaUrl} onChange={(e) => updateSettings({ ollamaUrl: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none" placeholder="http://localhost:11434" />
-                                    </div>
-                                    <p className="text-[0.7em] text-zinc-500">預設使用 llama3 模型，請確認已 pull。</p>
-                                </div>
-                            )}
-
-                            {(settings.provider === 'lmstudio') && (
-                                <div className="space-y-3 animate-fade-in-up">
-                                    <div className="space-y-1">
-                                        <span className="text-[0.8em] text-zinc-500">LM Studio Base URL</span>
-                                        <input type="text" value={settings.lmStudioUrl} onChange={(e) => updateSettings({ lmStudioUrl: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none" placeholder="http://localhost:1234/v1" />
-                                    </div>
-                                </div>
-                            )}
-
-                            {(settings.provider === 'anythingllm') && (
-                                <div className="space-y-3 animate-fade-in-up">
-                                    <div className="space-y-1">
-                                        <span className="text-[0.8em] text-zinc-500">Base URL</span>
-                                        <input type="text" value={settings.anythingLlmUrl} onChange={(e) => updateSettings({ anythingLlmUrl: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none" placeholder="http://localhost:3001/api/v1/openai" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <span className="text-[0.8em] text-zinc-500">API Key</span>
-                                        <input type="password" value={settings.apiKeys.anythingllm} onChange={(e) => updateSettings({ apiKeys: { ...settings.apiKeys, anythingllm: e.target.value } })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none" />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="border-t border-zinc-800"></div>
-
-                        {/* 4. 介面顯示 (Display) */}
-                        <div className="space-y-3">
-                            <label className="text-[0.85em] font-semibold text-zinc-400 uppercase tracking-wider">介面與顯示</label>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <span className="text-[0.8em] text-zinc-500 block mb-1">介面大小</span>
-                                    <select value={settings.uiFontSize} onChange={(e) => updateSettings({ uiFontSize: e.target.value as any })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-sm focus:border-primary outline-none">
-                                        <option value="sm">小字體</option><option value="md">中字體</option><option value="lg">大字體</option>
+                                <div className="space-y-2 mb-3">
+                                    <span className="text-[0.8em] text-zinc-500 block">分析與對話供應商</span>
+                                    <select value={settings.provider} onChange={(e) => updateSettings({ provider: e.target.value as LLMProvider })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none">
+                                        <option value="gemini">Google Gemini</option>
+                                        <option value="openai">OpenAI (GPT)</option>
+                                        <option value="ollama">Ollama (Local)</option>
+                                        <option value="lmstudio">LM Studio (Local)</option>
+                                        <option value="anythingllm">AnythingLLM</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <span className="text-[0.8em] text-zinc-500 block mb-1">內文大小</span>
-                                    <select value={settings.contentFontSize} onChange={(e) => updateSettings({ contentFontSize: e.target.value as any })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-sm focus:border-primary outline-none">
-                                        <option value="sm">內文小</option><option value="md">內文中</option><option value="lg">內文大</option><option value="xl">特大</option>
-                                    </select>
+
+                                {/* Provider Specific Settings */}
+                                {settings.provider === 'gemini' && (
+                                    <div className="space-y-3 animate-fade-in-up">
+                                        <div className="space-y-1">
+                                            <span className="text-[0.8em] text-zinc-500">API Key</span>
+                                            <input type="password" value={settings.apiKeys.gemini} onChange={(e) => updateSettings({ apiKeys: { ...settings.apiKeys, gemini: e.target.value } })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none" placeholder="sk-..." />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <span className="text-[0.8em] text-zinc-500">轉錄優化模型 (Transcription)</span>
+                                            <select
+                                                value={settings.geminiTranscriptionModel}
+                                                onChange={(e) => updateSettings({ geminiTranscriptionModel: e.target.value })}
+                                                className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none"
+                                            >
+                                                {GEMINI_MODELS.map(m => (
+                                                    <option key={m.value} value={m.value}>{m.label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <span className="text-[0.8em] text-zinc-500">分析與對話模型 (Analysis)</span>
+                                            <select
+                                                value={settings.geminiAnalysisModel}
+                                                onChange={(e) => updateSettings({ geminiAnalysisModel: e.target.value })}
+                                                className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none"
+                                            >
+                                                {GEMINI_MODELS.map(m => (
+                                                    <option key={m.value} value={m.value}>{m.label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {settings.provider === 'openai' && (
+                                    <div className="space-y-3 animate-fade-in-up">
+                                        <div className="space-y-1">
+                                            <span className="text-[0.8em] text-zinc-500">OpenAI API Key</span>
+                                            <input type="password" value={settings.apiKeys.openai} onChange={(e) => updateSettings({ apiKeys: { ...settings.apiKeys, openai: e.target.value } })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none" placeholder="sk-..." />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(settings.provider === 'ollama') && (
+                                    <div className="space-y-3 animate-fade-in-up">
+                                        <div className="space-y-1">
+                                            <span className="text-[0.8em] text-zinc-500">Ollama URL</span>
+                                            <input type="text" value={settings.ollamaUrl} onChange={(e) => updateSettings({ ollamaUrl: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none" placeholder="http://localhost:11434" />
+                                        </div>
+                                        <p className="text-[0.7em] text-zinc-500">預設使用 llama3 模型，請確認已 pull。</p>
+                                    </div>
+                                )}
+
+                                {(settings.provider === 'lmstudio') && (
+                                    <div className="space-y-3 animate-fade-in-up">
+                                        <div className="space-y-1">
+                                            <span className="text-[0.8em] text-zinc-500">LM Studio Base URL</span>
+                                            <input type="text" value={settings.lmStudioUrl} onChange={(e) => updateSettings({ lmStudioUrl: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none" placeholder="http://localhost:1234/v1" />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(settings.provider === 'anythingllm') && (
+                                    <div className="space-y-3 animate-fade-in-up">
+                                        <div className="space-y-1">
+                                            <span className="text-[0.8em] text-zinc-500">Base URL</span>
+                                            <input type="text" value={settings.anythingLlmUrl} onChange={(e) => updateSettings({ anythingLlmUrl: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none" placeholder="http://localhost:3001/api/v1/openai" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <span className="text-[0.8em] text-zinc-500">API Key</span>
+                                            <input type="password" value={settings.apiKeys.anythingllm} onChange={(e) => updateSettings({ apiKeys: { ...settings.apiKeys, anythingllm: e.target.value } })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.9em] focus:border-primary outline-none" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="border-t border-zinc-800"></div>
+
+                            {/* 4. 介面顯示 (Display) */}
+                            <div className="space-y-3">
+                                <label className="text-[0.85em] font-semibold text-zinc-400 uppercase tracking-wider">介面與顯示</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <span className="text-[0.8em] text-zinc-500 block mb-1">介面大小</span>
+                                        <select value={settings.uiFontSize} onChange={(e) => updateSettings({ uiFontSize: e.target.value as any })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-sm focus:border-primary outline-none">
+                                            <option value="sm">小字體</option><option value="md">中字體</option><option value="lg">大字體</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <span className="text-[0.8em] text-zinc-500 block mb-1">內文大小</span>
+                                        <select value={settings.contentFontSize} onChange={(e) => updateSettings({ contentFontSize: e.target.value as any })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-sm focus:border-primary outline-none">
+                                            <option value="sm">內文小</option><option value="md">內文中</option><option value="lg">內文大</option><option value="xl">特大</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
             </div>
+
+            <div
+                className="absolute right-0 top-0 bottom-0 w-1 bg-transparent hover:bg-primary/50 cursor-col-resize z-50 transition-colors"
+                onMouseDown={startResizing}
+            />
         </div >
     );
 };
