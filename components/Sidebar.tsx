@@ -486,10 +486,7 @@ const Sidebar: React.FC = () => {
                                 <span className="text-[0.8em] text-zinc-500 block">應用程式名稱</span>
                                 <input type="text" value={settings.appName} onChange={(e) => updateSettings({ appName: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none" />
                             </div>
-                            <div className="space-y-2">
-                                <span className="text-[0.8em] text-zinc-500 block">使用者名稱</span>
-                                <input type="text" value={settings.userName} onChange={(e) => updateSettings({ userName: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none" placeholder="User" />
-                            </div>
+
 
                             <div className="space-y-2">
                                 <span className="text-[0.8em] text-zinc-500 block">AI 互動模式</span>

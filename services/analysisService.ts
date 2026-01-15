@@ -324,11 +324,19 @@ async function callLLM(prompt: string, settings: AppSettings, retries = 3): Prom
     } catch (error: any) {
         // Handle Rate Limiting (429) specifically
         if (retries > 0 && (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED') || error.status === 429)) {
-            const waitSeconds = 15; // Wait 15s as suggested by error message (or use exponential backoff)
-            // console.warn(`Rate limit hit. Retrying in ${waitSeconds}s... (${retries} retries left)`);
+            // Try to extract wait time from error message, e.g., "Please retry in 57.89569092s."
+            let waitSeconds = 20;
+            const match = error.message?.match(/retry in\s+([0-9.]+)\s*s/i);
+            if (match && match[1]) {
+                waitSeconds = Math.ceil(parseFloat(match[1])) + 2; // Add 2s buffer
+            } else if (error.message?.includes('Quota exceeded')) {
+                // Fallback for quota exceeded which might be longer
+                waitSeconds = 60;
+            }
 
-            // Notify user indirectly through longer loading or we could throw a special retry error.
-            // But here we just wait.
+            console.warn(`Rate limit hit. Retrying in ${waitSeconds}s... (${retries} retries left)`);
+
+            // Wait
             await sleep(waitSeconds * 1000);
             return callLLM(prompt, settings, retries - 1);
         }

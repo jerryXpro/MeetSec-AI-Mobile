@@ -1,5 +1,7 @@
 // @ts-ignore
 // import * as lamejs from 'lamejs';
+import * as Mp4Muxer from 'mp4-muxer';
+import * as WebmMuxer from 'webm-muxer';
 
 export function base64ToBytes(base64: string): Uint8Array {
   const binaryString = atob(base64);
@@ -253,4 +255,145 @@ export function downsampleBuffer(buffer: Float32Array, inputSampleRate: number, 
     offsetBuffer = nextOffsetBuffer;
   }
   return result;
+}
+
+export async function convertAudioFast(
+  audioBuffer: AudioBuffer,
+  format: 'm4a' | 'webm',
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal
+): Promise<Blob> {
+  const sampleRate = audioBuffer.sampleRate;
+  const numberOfChannels = audioBuffer.numberOfChannels; // usually 1 or 2
+  const duration = audioBuffer.duration;
+
+  if (signal?.aborted) {
+    throw new Error('AbortError');
+  }
+
+  // Configuration based on format
+  let muxer: any;
+  let audioEncoderConfig: AudioEncoderConfig;
+
+  if (format === 'm4a') {
+    muxer = new Mp4Muxer.Muxer({
+      target: new Mp4Muxer.ArrayBufferTarget(),
+      audio: {
+        codec: 'mp4a.40.2', // AAC LC
+        numberOfChannels,
+        sampleRate
+      },
+      fastStart: 'in-memory',
+    });
+    audioEncoderConfig = {
+      codec: 'mp4a.40.2' as any, // "aac" is not always reliable string, use specific profile
+      sampleRate,
+      numberOfChannels,
+      bitrate: 128_000,
+    };
+  } else {
+    // WebM
+    muxer = new WebmMuxer.Muxer({
+      target: new WebmMuxer.ArrayBufferTarget(),
+      audio: {
+        codec: 'Z', // Opus
+        numberOfChannels,
+        sampleRate,
+        bitDepth: 0 // Opus doesn't use bit depth
+      }
+    });
+    audioEncoderConfig = {
+      codec: 'opus',
+      sampleRate,
+      numberOfChannels,
+      // Opus is adaptable, but we can set a target bitrate
+      bitrate: 128_000,
+    };
+  }
+
+  const encoder = new AudioEncoder({
+    output: (chunk, meta) => {
+      muxer.addAudioChunk(chunk, meta);
+    },
+    error: (e) => {
+      console.error(e);
+      throw new Error(`Encoding failed: ${e.message}`);
+    }
+  });
+
+  encoder.configure(audioEncoderConfig);
+
+  // Process data in chunks
+  const data = new Float32Array(audioBuffer.length * numberOfChannels);
+  // Interleave if stereo
+  if (numberOfChannels === 1) {
+    data.set(audioBuffer.getChannelData(0));
+  } else {
+    const ch0 = audioBuffer.getChannelData(0);
+    const ch1 = audioBuffer.getChannelData(1);
+    for (let i = 0; i < audioBuffer.length; i++) {
+      data[i * 2] = ch0[i];
+      data[i * 2 + 1] = ch1[i];
+    }
+  }
+
+  // AudioData requires planar data for some codecs, but AudioData constructor 
+  // takes interleaved data for simple float32 format. 
+  // Correction: AudioData init dictionary wants `data` as BufferSource.
+  // We can create AudioData frame by frame.
+
+  // Actually, WebCodecs AudioEncoder works best by feeding it AudioData objects.
+  // One AudioData object can hold a chunk of samples.
+  // 1 second definition: 
+  const chunkSize = sampleRate; // 1 second of audio
+  const totalSamples = audioBuffer.length;
+
+  try {
+    for (let i = 0; i < totalSamples; i += chunkSize) {
+      if (signal?.aborted) {
+        throw new Error('AbortError');
+      }
+
+      const length = Math.min(chunkSize, totalSamples - i);
+      const timestamp = (i / sampleRate) * 1_000_000; // microseconds
+
+      // Extract chunk data (interleaved)
+      const chunkData = new Float32Array(length * numberOfChannels);
+      if (numberOfChannels === 1) {
+        chunkData.set(data.subarray(i, i + length));
+      } else {
+        chunkData.set(data.subarray(i * 2, (i + length) * 2));
+      }
+
+      const audioData = new AudioData({
+        format: 'f32',
+        sampleRate,
+        numberOfChannels,
+        numberOfFrames: length,
+        timestamp,
+        data: chunkData
+      });
+
+      encoder.encode(audioData);
+      audioData.close();
+
+      if (onProgress) {
+        onProgress(Math.min(99, Math.round(((i + length) / totalSamples) * 100)));
+      }
+
+      // Yield to UI
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    await encoder.flush();
+    muxer.finalize();
+
+    const buffer = muxer.target.buffer;
+    return new Blob([buffer], { type: format === 'm4a' ? 'audio/mp4' : 'audio/webm' });
+  } finally {
+    // Ensure encoder is closed if we abort
+    if (encoder.state !== 'closed') {
+      encoder.close();
+    }
+  }
 }
