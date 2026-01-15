@@ -112,7 +112,7 @@ const RecorderTab: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center h-full w-full max-w-2xl mx-auto animate-fade-in">
+        <div className="flex flex-col items-center justify-start pt-16 h-full w-full max-w-2xl mx-auto animate-fade-in">
             {/* Visualizer Area */}
             <div className="relative w-full h-64 bg-zinc-900/50 rounded-xl border border-zinc-800 mb-8 overflow-hidden flex items-center justify-center shadow-inner">
                 <canvas ref={canvasRef} width={600} height={250} className="w-full h-full opacity-80" />
@@ -509,7 +509,7 @@ const ConverterTab: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center h-full w-full max-w-lg mx-auto animate-fade-in p-8 text-center">
+        <div className="flex flex-col items-center justify-start pt-16 h-full w-full max-w-lg mx-auto animate-fade-in p-8 text-center">
             <h3 className="text-xl font-semibold text-zinc-100 mb-6">音訊轉檔工具</h3>
 
             <div

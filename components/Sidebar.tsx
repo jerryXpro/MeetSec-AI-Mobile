@@ -13,6 +13,8 @@ const GEMINI_MODELS = [
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB Limit
 
+import UserManual from './UserManual';
+
 const Sidebar: React.FC = () => {
     const {
         history,
@@ -33,8 +35,10 @@ const Sidebar: React.FC = () => {
         setViewMode
     } = useApp();
 
+    const [isManualOpen, setIsManualOpen] = useState(false);
+
     // Updated hook usage for new file list
-    const { temporaryFiles, addTemporaryFile, removeTemporaryFile, clearTemporaryFiles } = useLive();
+    const { temporaryFiles, addTemporaryFile, removeTemporaryFile, clearTemporaryFiles, isConnected } = useLive();
     const safeTemporaryFiles = temporaryFiles || []; // Safety fallback
 
     const contextFileInputRef = useRef<HTMLInputElement>(null);
@@ -237,6 +241,7 @@ const Sidebar: React.FC = () => {
             className="h-full border-r border-zinc-800 bg-surface flex flex-col z-20 shrink-0 relative"
             style={{ width: width, transition: isResizing ? 'none' : 'width 0.3s ease' }}
         >
+            <UserManual isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
             {/* Drag Handle */}
             <div
                 className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-blue-500/50 z-50 transition-colors"
@@ -295,14 +300,6 @@ const Sidebar: React.FC = () => {
                 <div style={{ fontSize: `${settings.navFontSize}px` }} className="font-bold text-zinc-500 uppercase tracking-wider px-2 mb-1 mt-2">功能管理</div>
 
                 <button
-                    onClick={() => setSidebarTab('history')}
-                    className={`group w-full flex items-center gap-3 p-2.5 rounded-lg transition-all ${sidebarTab === 'history' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
-                >
-                    <svg className={`w-4 h-4 ${sidebarTab === 'history' ? 'text-primary' : 'text-zinc-500 group-hover:text-zinc-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <span className="text-sm font-medium">歷史紀錄</span>
-                </button>
-
-                <button
                     onClick={() => setSidebarTab('profiles')}
                     className={`group w-full flex items-center gap-3 p-2.5 rounded-lg transition-all ${sidebarTab === 'profiles' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
                 >
@@ -320,25 +317,6 @@ const Sidebar: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                {sidebarTab === 'history' && (
-                    <div className="space-y-3">
-                        {history.length === 0 && <p className="text-zinc-600 text-center mt-10">尚無會議記錄。</p>}
-                        {history.map(session => (
-                            <div key={session.id} className="group p-3 rounded-lg border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 hover:border-zinc-700 transition-all cursor-pointer">
-                                <div className="flex justify-between items-start mb-1">
-                                    <h3 className="font-medium text-zinc-200 truncate pr-4 text-[0.95em]">{session.title}</h3>
-                                    <button onClick={(e) => { e.stopPropagation(); deleteMeeting(session.id); }} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                    </button>
-                                </div>
-                                <div className="flex justify-between text-[0.85em] text-zinc-500">
-                                    <span>{new Date(session.date).toLocaleDateString()}</span>
-                                    <span>{Math.floor(session.duration / 60)}分 {session.duration % 60}秒</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
 
                 {sidebarTab === 'profiles' && (
                     <div className="space-y-4">
@@ -359,20 +337,108 @@ const Sidebar: React.FC = () => {
 
                         <div className="space-y-3">
                             {profiles.map(p => (
-                                <div key={p.id} className={`rounded - lg border transition - all ${settings.currentProfileId === p.id ? 'border-primary/50 bg-primary/10' : 'border-zinc-800 bg-zinc-900/30'} `}>
+                                <div key={p.id} className={`rounded-lg border transition-all ${settings.currentProfileId === p.id ? 'border-primary/50 bg-primary/10' : 'border-zinc-800 bg-zinc-900/30'} `}>
                                     <div className="p-3 cursor-pointer" onClick={() => updateSettings({ currentProfileId: p.id })}>
                                         <div className="flex items-center justify-between mb-1">
-                                            <span className="font-medium text-[0.95em]">{p.name}</span>
-                                            <button onClick={(e) => { e.stopPropagation(); setEditingProfileId(editingProfileId === p.id ? null : p.id); }} className="text-icon hover:text-primary">
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5" /></svg>
-                                            </button>
+                                            <div className="flex items-center gap-2 flex-1">
+                                                {settings.currentProfileId === p.id && <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_5px_rgba(59,130,246,0.8)]"></div>}
+                                                <span className={`font-medium text-[0.95em] ${settings.currentProfileId === p.id ? 'text-primary' : 'text-zinc-200'}`}>{p.name}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                {/* Edit Toggle */}
+                                                <button onClick={(e) => { e.stopPropagation(); setEditingProfileId(editingProfileId === p.id ? null : p.id); }} className={`p-1 rounded hover:bg-zinc-800 ${editingProfileId === p.id ? 'text-primary text-zinc-500' : 'text-zinc-500'}`}>
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="text-[0.8em] text-zinc-500 truncate pl-3.5">
+                                            {p.documents.length} 份文件 • {p.description || "無描述"}
                                         </div>
                                     </div>
+
+                                    {/* Edit Mode Panel */}
                                     {editingProfileId === p.id && (
-                                        <div className="p-3 border-t border-zinc-800 bg-zinc-900/50 space-y-3 animate-fade-in-up">
-                                            <textarea value={p.description} onChange={(e) => updateProfile(p.id, { description: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-[0.85em] h-16" placeholder="描述..." />
-                                            <input type="file" ref={profileFileInputRef} onChange={handleProfileFileChange} className="hidden" />
-                                            <button onClick={() => profileFileInputRef.current?.click()} className="w-full py-1.5 border border-dashed border-zinc-700 text-[0.8em] text-icon hover:text-primary">上傳知識庫文件</button>
+                                        <div className="p-3 border-t border-zinc-800 bg-zinc-900/50 space-y-4 animate-fade-in-up cursor-default" onClick={(e) => e.stopPropagation()}>
+
+                                            {/* 1. Rename & Delete Profile */}
+                                            <div className="space-y-2">
+                                                <label className="text-[0.75em] uppercase font-bold text-zinc-500 tracking-wider">設定檔名稱</label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={p.name}
+                                                        onChange={(e) => updateProfile(p.id, { name: e.target.value })}
+                                                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-sm outline-none focus:border-primary focus:bg-zinc-800"
+                                                    />
+                                                    {p.id !== 'default' && (
+                                                        <button
+                                                            onClick={() => {
+                                                                if (confirm(`確定要刪除「${p.name}」嗎？此動作無法復原。`)) {
+                                                                    deleteProfile(p.id);
+                                                                }
+                                                            }}
+                                                            className="px-2.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-red-400 hover:border-red-400/50 transition-colors"
+                                                            title="刪除此設定檔"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* 2. Description */}
+                                            <div className="space-y-2">
+                                                <label className="text-[0.75em] uppercase font-bold text-zinc-500 tracking-wider">描述</label>
+                                                <textarea
+                                                    value={p.description}
+                                                    onChange={(e) => updateProfile(p.id, { description: e.target.value })}
+                                                    className="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-[0.85em] h-16 resize-none focus:border-primary outline-none"
+                                                    placeholder="描述此知識庫的用途..."
+                                                />
+                                            </div>
+
+                                            {/* 3. Documents Management */}
+                                            <div className="space-y-2">
+                                                <label className="text-[0.75em] uppercase font-bold text-zinc-500 tracking-wider flex justify-between items-center">
+                                                    <span>知識庫文件 ({p.documents.length})</span>
+                                                </label>
+
+                                                {/* File List */}
+                                                <div className="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                                                    {p.documents.length === 0 && (
+                                                        <div className="text-[0.8em] text-zinc-600 italic py-2 text-center border border-dashed border-zinc-800 rounded">尚無文件</div>
+                                                    )}
+                                                    {p.documents.map(doc => (
+                                                        <div key={doc.id} className="group flex items-center justify-between bg-zinc-800/50 hover:bg-zinc-800 border border-transparent hover:border-zinc-700 rounded px-2 py-1.5 transition-all">
+                                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                                <svg className="w-3.5 h-3.5 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                                <span className="text-[0.85em] text-zinc-300 truncate" title={doc.name}>{doc.name}</span>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => removeDocumentFromProfile(p.id, doc.id)}
+                                                                className="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all p-1"
+                                                                title="刪除文件"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                {/* Upload Button */}
+                                                <input type="file" ref={profileFileInputRef} onChange={handleProfileFileChange} className="hidden" />
+                                                <button
+                                                    onClick={() => profileFileInputRef.current?.click()}
+                                                    className="w-full py-2 border border-dashed border-zinc-700 rounded text-[0.8em] text-zinc-400 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    {isParsing ? (
+                                                        <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                                    ) : (
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                                    )}
+                                                    上傳新文件 (PDF/Txt)
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -492,15 +558,21 @@ const Sidebar: React.FC = () => {
                                 <span className="text-[0.8em] text-zinc-500 block">AI 互動模式</span>
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
-                                        onClick={() => updateSettings({ aiInteractionMode: 'passive' })}
-                                        className={`p - 2 rounded border text - left transition - all ${settings.aiInteractionMode === 'passive' ? 'bg-primary/20 border-primary text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-600'} `}
+                                        onClick={() => {
+                                            updateSettings({ aiInteractionMode: 'passive' });
+                                            if (isConnected) alert("變更將於下次連線時生效 (Changes will apply next session)");
+                                        }}
+                                        className={`p-2 rounded border text-left transition-all ${settings.aiInteractionMode === 'passive' ? 'bg-primary/20 border-primary text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-600'} `}
                                     >
                                         <div className="font-medium text-sm mb-0.5">被動模式</div>
                                         <div className="text-[0.7em] opacity-80">僅在被呼叫時回應</div>
                                     </button>
                                     <button
-                                        onClick={() => updateSettings({ aiInteractionMode: 'active' })}
-                                        className={`p - 2 rounded border text - left transition - all ${settings.aiInteractionMode === 'active' ? 'bg-amber-500/20 border-amber-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-600'} `}
+                                        onClick={() => {
+                                            updateSettings({ aiInteractionMode: 'active' });
+                                            if (isConnected) alert("變更將於下次連線時生效 (Changes will apply next session)");
+                                        }}
+                                        className={`p-2 rounded border text-left transition-all ${settings.aiInteractionMode === 'active' ? 'bg-amber-500/20 border-amber-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-600'} `}
                                     >
                                         <div className="font-medium text-sm mb-0.5">主動模式</div>
                                         <div className="text-[0.7em] opacity-80">自動參與討論</div>
@@ -765,6 +837,17 @@ const Sidebar: React.FC = () => {
                         </div>
                     </div>
                 )}
+            </div>
+
+
+            <div className="p-3 border-t border-zinc-800 shrink-0">
+                <button
+                    onClick={() => setIsManualOpen(true)}
+                    className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all text-sm group"
+                >
+                    <svg className="w-5 h-5 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                    <span>使用說明書 (User Manual)</span>
+                </button>
             </div>
 
             <div

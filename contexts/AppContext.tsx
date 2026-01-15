@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AppSettings, MeetingSession, KnowledgeProfile, ProfileDocument, ThemePreset, PresetCommand } from '../types';
 
-export type SidebarTab = 'history' | 'profiles' | 'settings';
+export type SidebarTab = 'profiles' | 'settings';
 
 interface AppContextType {
   settings: AppSettings;
@@ -155,7 +155,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (e) { return [defaultProfile]; }
   });
 
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('history');
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('profiles');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [viewMode, setViewMode] = useState<'meeting' | 'recording'>('meeting');
 

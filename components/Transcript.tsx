@@ -180,7 +180,7 @@ const TranscriptLine: React.FC<TranscriptLineProps> = ({
 
             {/* 3. Content Text (Editable) */}
             <span
-                className="flex-1 cursor-text hover:text-white/90"
+                className="flex-1 cursor-text hover:text-white/90 min-w-0 break-words whitespace-pre-wrap"
                 onClick={() => setIsEditingContent(true)}
                 title="點擊修改此行文字"
             >
@@ -422,7 +422,7 @@ const MessageBubble: React.FC<{ msg: Message }> = ({ msg }) => {
                             ))}
                         </div>
                     ) : (
-                        <div className="whitespace-pre-wrap leading-relaxed">
+                        <div className="whitespace-pre-wrap leading-relaxed break-words">
                             {msg.text}
                         </div>
                     )}
