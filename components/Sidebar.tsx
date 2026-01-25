@@ -568,6 +568,13 @@ const Sidebar: React.FC = () => {
                                                 </div>
                                             )}
 
+                                            {settings.provider === 'gemini' && (
+                                                <div className="space-y-1">
+                                                    <span className="text-[0.8em] text-zinc-500">Gemini API Key</span>
+                                                    <ApiKeyInput value={settings.apiKeys.gemini} onChange={(val) => updateSettings({ apiKeys: { ...settings.apiKeys, gemini: val } })} placeholder="AIza..." />
+                                                </div>
+                                            )}
+
                                             {/* UI Display Settings */}
                                             <div className="space-y-2 pt-2 border-t border-zinc-800">
                                                 <span className="text-[0.8em] text-zinc-500 block">內文文字大小</span>
