@@ -80,8 +80,8 @@ const defaultSettings: AppSettings = {
   userName: 'User',
   provider: 'gemini',
   apiKeys: { gemini: '', openai: '', anythingllm: '' },
-  geminiTranscriptionModel: 'gemini-3-flash-preview',
-  geminiAnalysisModel: 'gemini-3-flash-preview',
+  geminiTranscriptionModel: 'gemini-2.0-flash-exp',
+  geminiAnalysisModel: 'gemini-2.0-flash-exp',
   ollamaUrl: 'http://localhost:11434',
   lmStudioUrl: 'http://localhost:1234/v1',
   anythingLlmUrl: 'http://localhost:3001/api/v1/openai',
@@ -135,8 +135,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!merged.presetCommands) merged.presetCommands = defaultPresets; // Init presets if missing
 
       // Force update model if old saved setting is using deprecated model
-      if (merged.geminiTranscriptionModel === 'gemini-1.5-flash') merged.geminiTranscriptionModel = 'gemini-3-flash-preview';
-      if (merged.geminiAnalysisModel === 'gemini-1.5-flash') merged.geminiAnalysisModel = 'gemini-3-flash-preview';
+      if (merged.geminiTranscriptionModel === 'gemini-1.5-flash') merged.geminiTranscriptionModel = 'gemini-2.0-flash-exp';
+      if (merged.geminiAnalysisModel === 'gemini-1.5-flash') merged.geminiAnalysisModel = 'gemini-2.0-flash-exp';
       return merged;
     } catch (e) { return defaultSettings; }
   });

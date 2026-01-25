@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useLive } from '../contexts/LiveContext';
+import { useLive } from '../hooks/useLive';
 
 const AudioVisualizer: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -30,7 +30,7 @@ const AudioVisualizer: React.FC = () => {
         // Volume is 0-1 (approx)
         // We want a ripple effect
         const radius = 30 + (volume * 50); // Scale up to 80px
-        
+
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
         ctx.strokeStyle = `rgba(59, 130, 246, ${Math.max(0, 0.8 - volume)})`; // Fade out as it gets bigger
@@ -58,10 +58,10 @@ const AudioVisualizer: React.FC = () => {
 
   return (
     <div className="flex justify-center items-center p-4">
-      <canvas 
-        ref={canvasRef} 
-        width={200} 
-        height={150} 
+      <canvas
+        ref={canvasRef}
+        width={200}
+        height={150}
         className="w-[200px] h-[150px]"
       />
     </div>

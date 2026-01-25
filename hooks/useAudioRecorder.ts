@@ -222,6 +222,27 @@ export const useAudioRecorder = () => {
 
     }, [isRecording]);
 
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
+            if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+                audioContextRef.current.close().catch(console.error);
+            }
+            if (processorRef.current) {
+                processorRef.current.disconnect();
+            }
+            if (rafRef.current) {
+                cancelAnimationFrame(rafRef.current);
+            }
+            if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+            }
+        };
+    }, []);
+
     return {
         isRecording,
         duration,

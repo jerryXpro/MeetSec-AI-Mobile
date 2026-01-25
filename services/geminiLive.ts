@@ -51,6 +51,7 @@ export class GeminiLiveService {
 
   private userAudioChunks: Float32Array[] = [];
   private modelAudioChunks: Float32Array[] = [];
+  private currentSession: any = null; // Store session for sending text
 
   constructor() { }
 
@@ -60,6 +61,49 @@ export class GeminiLiveService {
 
   setAiMute(muted: boolean) {
     this.isAiMuted = muted;
+  }
+
+  // Allow sending text messages to the live session
+  async sendTextMessage(text: string) {
+    if (!this.active || !this.currentSession) {
+      console.warn("Cannot send text message: Session not active");
+      return;
+    }
+
+    try {
+      console.log("[GeminiLive] Sending text message:", text);
+
+      // 1. Send Text Turn using the correct SDK method
+      // The SDK's Session class does not have a generic `send` method, but has `sendClientContent`.
+      // It handles wrapping into { clientContent: ... } automatically.
+      await this.currentSession.sendClientContent({
+        turns: [
+          {
+            role: 'user',
+            parts: [{ text: text }]
+          }
+        ],
+        turnComplete: true
+      });
+
+      // 2. Hack Restored: Send a tiny silent audio frame to force the model to "wake up"
+      // This is often needed if the model is purely expecting audio flow
+      try {
+        const silence = new Float32Array(160); // 10ms at 16kHz
+        const pcmBlob = createPcmBlob(silence);
+        // Don't await this, just fire and forget to wake up the socket
+        this.currentSession.sendRealtimeInput({ media: pcmBlob });
+      } catch (e) {
+        console.warn("Failed to send silence trigger", e);
+      }
+
+      // Locally echo
+      if (this.currentOptions) {
+        this.currentOptions.onTranscript(text, 'user', false);
+      }
+    } catch (e) {
+      console.error("Failed to send text message:", e);
+    }
   }
 
   async connect(options: GeminiLiveOptions) {
@@ -141,35 +185,37 @@ export class GeminiLiveService {
              - 當發現討論偏題時，溫和地提醒。
              - 當有人提出問題無人回答時，嘗試提供答案。
              - 當討論陷入僵局時，提供新的觀點或總結目前進度。
-          3. **保持專業**：雖然主動，但不要過度打斷或是廢話。發言應精簡有力。
+          3. **例外狀況 (ALWAYS RESPOND)**：
+             - **最高優先順序**: 當收到**文字訊息** (Text Message) 時，代表使用者正在直接對你說話。**必須**立即回答，忽略其他規則。
+             - **一般規範**: 保持專業，但不要過度打斷或是廢話。發言應精簡有力。
           `;
       } else {
         // Default to Passive
         modelInstructions = `
           你是 ${options.appName} (也可稱為「小助手」)，在這場會議中擔任**靜默的紀錄者**。
           
-          【核心指令 - 被動模式 (STRICT PASSIVE MODE)】
-          1. **絕對保持安靜 (STRICT SILENCE)**：
-             - 你的唯一任務是聆聽並在心中紀錄。
-             - **絕對不要**主動發言，即使你聽到錯誤的資訊、長時間的沈默，或是有話想說。
-             - **忽略**所有非針對你的對話。
+          3. **例外狀況 (ALWAYS RESPOND)**：
+             - **最高優先順序**: 當收到**文字訊息** (Text Message) 時，代表使用者正在直接對你說話。**必須**立即回答，忽略任何靜默規則。
+             - **次要**: 當使用者明確說出喚醒詞（如「小助手」、「${options.appName}」）時，也請立即回答。
              
-          2. **唯一發言條件 (WAKE WORDS ONLY)**：
-             - 只有當使用者明確說出以下關鍵字時，你才被允許發言：
-               - 「小助手」
-               - 「會議助手」
-               - 「${options.appName}」
-               - 「Assistant」
-               - 「Help」
-             - 如果沒有聽到上述關鍵字，請**保持絕對沈默**。
-             
-          3. **回應原則**：
-             - 被呼叫時，請簡短、直接地回答問題。
-             - 回答完畢後，請立即恢復靜默模式。
+          4. **回應原則**：
+             - 被呼叫或收到文字時，請簡短、直接地回答問題。
+             - 回答完畢後，請繼續保持聆聽。
           `;
       }
 
-      const baseSystemPrompt = modelInstructions;
+      // Add Image Generation Capability Instruction
+      const imageInstruction = `
+      【圖片生成能力】
+      如果使用者要求看圖片、照片或視覺範例（例如："給我看一張...的照片"），請務必使用以下 Markdown 格式產生圖片連結：
+      ![描述](https://image.pollinations.ai/prompt/{描述}?width=1024&height=768&nologo=true)
+      
+      規則：
+      1. {描述} 必須是詳細的英文描述。例如：使用者說「給我看一隻貓」，你輸出 \`![Cat](https://image.pollinations.ai/prompt/cute%20cat%20fluffy?width=1024&height=768&nologo=true)\`
+      2. 不要解釋你在產生圖片，直接給出 Markdown 連結即可。
+      `;
+
+      const baseSystemPrompt = modelInstructions + "\n" + imageInstruction;
 
       let contextPrompt = "";
       if (options.previousContext) {
@@ -214,6 +260,12 @@ export class GeminiLiveService {
             options.onStateChange(ConnectionState.CONNECTED);
             this.active = true;
             this.connectionStartTime = Date.now();
+            try {
+              this.currentSession = await sessionPromise;
+              console.log("[GeminiLive] Session established:", this.currentSession);
+            } catch (e) {
+              console.error("[GeminiLive] Failed to capturing session object:", e);
+            }
             this.startAudioStreaming(sessionPromise, combinedStream);
 
             if (options.previousContext) {
@@ -312,6 +364,12 @@ export class GeminiLiveService {
 
   private async handleMessage(message: LiveServerMessage, options: GeminiLiveOptions) {
     if (!this.audioContext) return;
+
+    // Debug logging to see how server responds to text injection
+    if (Object.keys(message.serverContent || {}).length > 0) {
+      // console.log("[GeminiLive] Server Content:", JSON.stringify(message.serverContent).substring(0, 200));
+    }
+
 
     if (message.serverContent?.outputTranscription) {
       const text = message.serverContent.outputTranscription.text;

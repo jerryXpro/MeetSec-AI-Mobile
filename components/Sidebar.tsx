@@ -1,14 +1,17 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { useApp, THEME_PRESETS } from '../contexts/AppContext';
-import { useLive } from '../contexts/LiveContext';
+import { useLive } from '../hooks/useLive';
 import { parseFileToText } from '../utils/fileParser';
 import { KnowledgeProfile, ProfileDocument, ThemePreset, LLMProvider, AppSettings } from '../types';
 
 const GEMINI_MODELS = [
-    { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (標準/快速)' },
-    { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro (強大推理)' },
-    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (實驗版)' },
+    { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro (Preview)' },
+    { value: 'gemini-3-flash', label: 'Gemini 3 Flash' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite' },
+    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Exp)' },
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB Limit
@@ -50,6 +53,10 @@ const Sidebar: React.FC = () => {
     const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
     const [isCreatingProfile, setIsCreatingProfile] = useState(false);
     const [newProfileName, setNewProfileName] = useState("");
+
+    // Test Connection State
+    const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+    const [testMessage, setTestMessage] = useState("");
 
     const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
 
@@ -768,6 +775,70 @@ const Sidebar: React.FC = () => {
                                                     <option key={m.value} value={m.value}>{m.label}</option>
                                                 ))}
                                             </select>
+                                        </div>
+
+                                        {/* Connection Test Button */}
+                                        <div className="pt-2">
+                                            <button
+                                                onClick={async () => {
+                                                    setTestStatus('testing');
+                                                    setTestMessage("");
+                                                    try {
+                                                        if (!settings.apiKeys.gemini) throw new Error("請先輸入 API Key");
+
+                                                        // Dynamic Import to avoid top-level dependency issues if package missing
+                                                        const { GoogleGenAI } = await import("@google/genai");
+                                                        const ai = new GoogleGenAI({ apiKey: settings.apiKeys.gemini });
+
+                                                        // Test with Analysis Model
+                                                        const model = settings.geminiAnalysisModel || 'gemini-2.0-flash-exp';
+                                                        await ai.models.generateContent({
+                                                            model: model,
+                                                            contents: { role: 'user', parts: [{ text: 'Hello' }] }
+                                                        });
+
+                                                        setTestStatus('success');
+                                                        setTestMessage(`連線成功！(${model})`);
+                                                    } catch (e: any) {
+                                                        console.error(e);
+                                                        setTestStatus('error');
+                                                        setTestMessage(`連線失敗: ${e.message || "未知錯誤"}`);
+                                                    }
+                                                }}
+                                                disabled={testStatus === 'testing' || !settings.apiKeys.gemini}
+                                                className={`w-full py-2 rounded text-sm font-medium transition-all flex items-center justify-center gap-2
+                                                    ${testStatus === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/50' :
+                                                        testStatus === 'error' ? 'bg-red-500/20 text-red-400 border border-red-500/50' :
+                                                            'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700'}
+                                                    disabled:opacity-50 disabled:cursor-not-allowed`}
+                                            >
+                                                {testStatus === 'testing' ? (
+                                                    <>
+                                                        <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                                        測試連線中...
+                                                    </>
+                                                ) : testStatus === 'success' ? (
+                                                    <>
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                        測試成功
+                                                    </>
+                                                ) : testStatus === 'error' ? (
+                                                    <>
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                        測試失敗
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                                        測試連線 (Test Connection)
+                                                    </>
+                                                )}
+                                            </button>
+                                            {testMessage && (
+                                                <p className={`text-[0.75em] mt-1.5 text-center ${testStatus === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {testMessage}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                 )}

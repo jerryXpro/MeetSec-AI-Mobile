@@ -184,7 +184,6 @@ async function callLLM(prompt: string, settings: AppSettings, retries = 3): Prom
             if (!settings.apiKeys.gemini) throw new Error("請先在設定中輸入 Gemini API Key。");
 
             // Use hardcoded model if not set, BUT respect the user setting if present.
-            // Note: The error message mentioned 'gemini-3-flash', so user might be using that.
             const modelName = settings.geminiAnalysisModel || 'gemini-2.0-flash-exp';
 
             const ai = new GoogleGenAI({ apiKey: settings.apiKeys.gemini });

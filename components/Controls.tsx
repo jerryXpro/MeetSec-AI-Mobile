@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useLive } from '../contexts/LiveContext';
+import { useLive } from '../hooks/useLive';
 import { useApp } from '../contexts/AppContext';
 import { ConnectionState } from '../types';
 import { downloadTranscriptAsText } from '../utils/downloadUtils';
@@ -22,7 +22,8 @@ const Controls: React.FC = () => {
         toggleAiMute,
 
         fullAudioUrl, // New: Audio download URL
-        resetSession
+        resetSession,
+        sendTextMessage
     } = useLive();
 
     const { settings, updateSettings, setSidebarOpen, setSidebarTab } = useApp();
@@ -30,6 +31,9 @@ const Controls: React.FC = () => {
 
     const [useSystemAudio, setUseSystemAudio] = useState(false);
     const [showEndConfirm, setShowEndConfirm] = useState(false);
+
+    // Chat Input State
+    const [chatInput, setChatInput] = useState("");
 
     const handleToggle = () => {
         if (connectionState === ConnectionState.CONNECTED || connectionState === ConnectionState.CONNECTING || connectionState === ConnectionState.RECONNECTING) {
@@ -43,6 +47,14 @@ const Controls: React.FC = () => {
             }
         } else {
             connect(useSystemAudio);
+        }
+    };
+
+    const handleSendText = async (e?: React.FormEvent) => {
+        e?.preventDefault();
+        if (chatInput.trim()) {
+            await sendTextMessage(chatInput);
+            setChatInput("");
         }
     };
 
@@ -209,6 +221,26 @@ const Controls: React.FC = () => {
                             </>
                         )}
                     </button>
+
+                    {/* Chat Input for Live Mode */}
+                    {isConnected && !showEndConfirm && (
+                        <form onSubmit={handleSendText} className="relative mt-3 w-full max-w-[280px] animate-fade-in-up">
+                            <input
+                                type="text"
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                placeholder="傳送訊息給 AI..."
+                                className="w-full bg-zinc-800/50 border border-zinc-700 rounded-full px-4 py-1.5 pl-4 pr-10 text-sm text-white focus:outline-none focus:border-blue-500/50 focus:bg-zinc-800 transition-all placeholder-zinc-500"
+                            />
+                            <button
+                                type="submit"
+                                disabled={!chatInput.trim()}
+                                className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-blue-400 hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                            </button>
+                        </form>
+                    )}
 
                     {/* New Meeting Button Container - Reserved Space */}
                     <div className="h-[40px] flex items-center justify-center mt-2">

@@ -67,6 +67,10 @@ const USER_MANUAL_MD = `# MeetSec-AI 會議秘書與錄音工具 - 使用說明�
     *   **主動模式 (Active)**：AI 會根據對話內容，適時插入洞見或提醒遺漏事項 (可於設定中切換)。
 *   **補充資料**：可上傳 PDF/Word 文件作為會議背景知識，讓 AI 回答更精準。
 
+**安全防護機制：**
+*   **結束確認**：點擊「結束會議」時按鈕會呈現紅色閃爍警示，需再次點擊確認才會真正斷線，防止誤觸。
+*   **開啟新會議**：若需全新紀錄，請使用結束後出現的「開啟新會議」按鈕。
+
 ### 3.2 獨立錄音室 (Independent Recording Studio)
 
 當您不需要 AI 介入，只想進行高品質錄音時（如訪談、個人備忘），請切換至此模式。
@@ -114,7 +118,7 @@ const USER_MANUAL_MD = `# MeetSec-AI 會議秘書與錄音工具 - 使用說明�
 
 ### 4.2 AI 模型設定
 *   **供應商選擇**：支援 Google Gemini, OpenAI, Ollama (本地), LM Studio 等。
-*   **API Key 管理**：在此安全輸入您的 API 金鑰。
+*   **API Key 管理**：在此輸入您的 Google Gemini API Key (單一組)。
 *   **麥克風靈敏度**：透過滑桿調整 Noise Gate，過濾環境雜音。
 
 ### 4.3 知識庫管理 (Knowledge Base)

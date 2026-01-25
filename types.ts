@@ -108,3 +108,9 @@ export interface AudioVisualizerData {
   volume: number;
   frequencyData: Uint8Array;
 }
+
+export interface TemporaryFile {
+  id: string;
+  name: string;
+  content: string;
+}

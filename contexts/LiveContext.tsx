@@ -1,49 +1,9 @@
-import React, { createContext, useContext, useState, useRef, ReactNode, useEffect } from 'react';
-import { ConnectionState, Message } from '../types';
+import React, { useState, useRef, ReactNode, useEffect } from 'react';
+import { ConnectionState, Message, TemporaryFile } from '../types';
 import { GeminiLiveService } from '../services/geminiLive.ts';
 import { transcribeAudioFile } from '../services/fileUploadService';
 import { useApp } from './AppContext';
-
-export interface TemporaryFile {
-  id: string;
-  name: string;
-  content: string;
-}
-
-interface LiveContextType {
-  isConnected: boolean;
-  isConnecting: boolean;
-  connectionState: ConnectionState;
-  messages: Message[];
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
-  updateMessage: (id: string, updates: Partial<Message>) => void;
-  renameSpeaker: (oldName: string, newName: string) => void;
-  updateMessageSpeaker: (id: string, newName: string) => void;
-  volume: number;
-  connect: (useSystemAudio?: boolean) => Promise<void>;
-  disconnect: () => Promise<void>;
-  uploadFile: (file: File) => Promise<void>;
-  isProcessingFile: boolean;
-  error: string | null;
-  sessionDuration: number;
-  meetingTitle: string;
-  setMeetingTitle: (title: string) => void;
-
-  // Updated Context File Management
-  temporaryFiles: TemporaryFile[];
-  addTemporaryFile: (name: string, content: string) => void;
-  removeTemporaryFile: (id: string) => void;
-  clearTemporaryFiles: () => void;
-
-  isMuted: boolean;
-  toggleMute: () => void;
-  isAiMuted: boolean;
-  toggleAiMute: () => void;
-  fullAudioUrl: string | null;
-  resetSession: () => void;
-}
-
-const LiveContext = createContext<LiveContextType | undefined>(undefined);
+import { LiveContext } from './LiveContextCore';
 
 export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { settings, saveMeeting, profiles } = useApp();
@@ -374,6 +334,23 @@ export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setError(null);
   };
 
+  /* New: Send Text Message */
+  const sendTextMessage = async (text: string) => {
+    if (!text.trim()) return;
+
+    // Optimistically add to UI
+    const tempId = Date.now().toString();
+    setMessages(prev => [...prev, {
+      id: tempId,
+      role: 'user',
+      text: text,
+      timestamp: Date.now(),
+      speaker: 'You (Text)'
+    }]);
+
+    await serviceRef.current?.sendTextMessage(text);
+  };
+
   return (
     <LiveContext.Provider value={{
       isConnected: connectionState === ConnectionState.CONNECTED,
@@ -404,15 +381,11 @@ export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isAiMuted,
       toggleAiMute,
       fullAudioUrl,
-      resetSession
+      resetSession,
+
+      sendTextMessage // Exported
     }}>
       {children}
     </LiveContext.Provider>
   );
-};
-
-export const useLive = () => {
-  const context = useContext(LiveContext);
-  if (!context) throw new Error('useLive must be used within a LiveProvider');
-  return context;
 };

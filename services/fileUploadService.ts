@@ -26,7 +26,7 @@ export const transcribeAudioFile = async (
 
   // 3. Prepare Prompt
   // Use user-configured model, default to gemini-3-flash-preview if undefined
-  const modelName = settings.geminiTranscriptionModel || 'gemini-3-flash-preview';
+  const modelName = settings.geminiTranscriptionModel || 'gemini-2.0-flash-exp';
 
   const languageInstruction = settings.recordingLanguage === 'ja-JP'
     ? "The audio is in Japanese. Transcribe in Japanese."
@@ -80,31 +80,66 @@ export const transcribeAudioFile = async (
   console.log(`[Transcribe] Uploading file: ${file.name}, Size: ${file.size} bytes`);
   console.log(`[Transcribe] Model: ${modelName}, MimeType: ${mimeType}`);
 
-  try {
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType: mimeType || 'audio/mp3', // Fallback
-              data: base64Data
-            }
-          },
-          {
-            text: systemPrompt
-          }
-        ]
-      }
-    });
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+  const generate = async (model: string, retries = 3): Promise<any> => {
+    try {
+      return await ai.models.generateContent({
+        model: model,
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: mimeType || 'audio/mp3',
+                data: base64Data
+              }
+            },
+            { text: systemPrompt }
+          ]
+        }
+      });
+    } catch (error: any) {
+      // Retry on 429 (Too Many Requests) or 503 (Service Unavailable)
+      if (retries > 0 && (error.message?.includes('429') || error.status === 429 || error.message?.includes('Quota exceeded') || error.status === 503)) {
+
+        // Extract wait time from error message
+        // Example: "Please retry in 54.550499395s."
+        let waitSeconds = 5;
+        const match = error.message?.match(/retry in\s+([0-9.]+)\s*s/i);
+        if (match && match[1]) {
+          waitSeconds = Math.ceil(parseFloat(match[1])) + 2; // Add 2s buffer
+        } else if (error.message?.includes('Quota exceeded')) {
+          // If quota exceeded but no time given, wait longer (e.g. 20s) to be safe
+          waitSeconds = 20;
+        }
+
+        console.warn(`Rate limit/Quota hit for ${model}. Retrying in ${waitSeconds}s... (${retries} retries left)`);
+        await sleep(waitSeconds * 1000);
+        return generate(model, retries - 1);
+      }
+      throw error;
+    }
+  };
+
+  try {
+    const response = await generate(modelName);
     return response.text || "無法識別音訊內容。";
   } catch (error: any) {
-    console.error("Transcription Error Full:", JSON.stringify(error, null, 2));
+    console.error(`Transcription Failed with ${modelName}:`, error);
 
-    // Check if error is 500
-    if (error.message?.includes('500') || error.status === 500) {
-      console.error("Internal Error detected. Checking constraints.");
+    // Fallback Logic for 500 Errors (Internal Error) or Quota Exceeded (429) - Retry with stable model
+    const isInternalError = error.message?.includes('500') || error.status === 500 || error.message?.includes('Internal error');
+    const isQuotaError = error.message?.includes('429') || error.status === 429 || error.message?.includes('Quota exceeded');
+
+    if ((isInternalError || isQuotaError) && modelName !== 'gemini-2.0-flash-exp') {
+      const fallbackReason = isInternalError ? "Internal Error" : "Quota Exceeded";
+      console.warn(`${fallbackReason} detected on primary model. Attempting fallback to gemini-2.0-flash-exp...`);
+      try {
+        const fallbackResponse = await generate('gemini-2.0-flash-exp');
+        return fallbackResponse.text || "無法識別音訊內容 (Fallback)。";
+      } catch (fallbackError: any) {
+        throw new Error(`轉錄失敗 (Fallback also failed): ${fallbackError.message}`);
+      }
     }
 
     throw new Error(`轉錄失敗: ${error.message || "未知錯誤"}`);

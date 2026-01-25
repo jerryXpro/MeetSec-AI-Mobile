@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
-import { useLive } from '../contexts/LiveContext';
+import { useLive } from '../hooks/useLive';
 import { useApp } from '../contexts/AppContext';
 import { Message } from '../types';
 
