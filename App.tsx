@@ -115,23 +115,21 @@ const AppLayout: React.FC = () => {
 
       {/* Mobile Bottom Navigation Bar (Visible ONLY on Mobile + Meeting Mode) */}
       {viewMode === 'meeting' && (
-        <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm">
-          <div className="bg-zinc-900/90 backdrop-blur-xl border border-white/10 p-1 rounded-2xl shadow-2xl flex relative">
+        <div className="md:hidden fixed bottom-0 left-0 w-full z-[100] bg-zinc-900 border-t border-white/10 pb-6 pt-1">
+          <div className="flex items-center p-2 gap-2">
             <button
               onClick={() => setIsMobileAssistantOpen(false)}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all relative z-10 ${!isMobileAssistantOpen ? 'text-white font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all ${!isMobileAssistantOpen ? 'bg-zinc-800 text-white' : 'text-zinc-500 active:bg-zinc-800/50'}`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-              <span className="text-sm">即時逐字稿</span>
-              {!isMobileAssistantOpen && <div className="absolute inset-0 bg-zinc-800 rounded-xl -z-10 shadow-inner"></div>}
+              <span className="text-sm font-medium">即時逐字稿</span>
             </button>
             <button
               onClick={() => setIsMobileAssistantOpen(true)}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all relative z-10 ${isMobileAssistantOpen ? 'text-white font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all ${isMobileAssistantOpen ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-zinc-500 active:bg-zinc-800/50'}`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-              <span className="text-sm">AI 助手</span>
-              {isMobileAssistantOpen && <div className="absolute inset-0 bg-blue-600 rounded-xl -z-10 shadow-lg shadow-blue-500/20"></div>}
+              <span className="text-sm font-medium">AI 助手</span>
             </button>
           </div>
         </div>
