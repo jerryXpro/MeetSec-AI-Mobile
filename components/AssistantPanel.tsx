@@ -271,8 +271,11 @@ const AssistantPanel: React.FC = () => {
 
     return (
         <div
-            className="h-full border-l border-zinc-800 bg-surface flex flex-col z-20 shadow-2xl relative"
-            style={{ width: width, transition: isResizing ? 'none' : 'width 0.3s ease' }}
+            className="h-full border-l border-zinc-800 bg-surface flex flex-col z-20 shadow-2xl relative w-full md:w-auto"
+            style={{
+                width: window.innerWidth < 768 ? '100%' : width,
+                transition: isResizing ? 'none' : 'width 0.3s ease'
+            }}
         >
             <div
                 className="absolute left-0 top-0 w-1 h-full cursor-col-resize hover:bg-blue-500/50 z-50 transition-colors"
@@ -285,8 +288,8 @@ const AssistantPanel: React.FC = () => {
                     AI 會議助手
                 </h2>
                 <div className="flex mt-3 bg-zinc-900 rounded-lg p-1 border border-zinc-800">
-                    <button onClick={() => setActiveTab('analysis')} className={`flex-1 py-1.5 font-medium rounded-md transition-all ${activeTab === 'analysis' ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>會議記錄</button>
-                    <button onClick={() => setActiveTab('chat')} className={`flex-1 py-1.5 font-medium rounded-md transition-all ${activeTab === 'chat' ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>聊天</button>
+                    <button onClick={() => setActiveTab('analysis')} className={`flex-1 py-1.5 font-medium rounded-md transition-all ${activeTab === 'analysis' ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>會議摘要</button>
+                    <button onClick={() => setActiveTab('chat')} className={`flex-1 py-1.5 font-medium rounded-md transition-all ${activeTab === 'chat' ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>AI 對話</button>
                 </div>
             </div>
 
@@ -491,8 +494,8 @@ const AssistantPanel: React.FC = () => {
                                     {chatHistory.map(msg => (
                                         <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
                                             <div className={`px-3 py-2 rounded-xl max-w-[90%] shadow-sm ${msg.role === 'user'
-                                                    ? 'bg-blue-600/20 text-blue-100 rounded-br-none border border-blue-500/30'
-                                                    : 'bg-zinc-800 text-zinc-200 rounded-tl-none border border-zinc-700'
+                                                ? 'bg-blue-600/20 text-blue-100 rounded-br-none border border-blue-500/30'
+                                                : 'bg-zinc-800 text-zinc-200 rounded-tl-none border border-zinc-700'
                                                 }`}>
                                                 {msg.content}
                                             </div>
@@ -526,8 +529,8 @@ const AssistantPanel: React.FC = () => {
                                     onClick={toggleListening}
                                     disabled={!hasContent || isChatting}
                                     className={`absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all ${isListening
-                                            ? 'text-red-500 hover:bg-red-500/10 animate-pulse'
-                                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                                        ? 'text-red-500 hover:bg-red-500/10 animate-pulse'
+                                        : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
                                         }`}
                                 >
                                     {isListening ? (

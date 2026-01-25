@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AppProvider, useApp } from './contexts/AppContext';
 import { LiveProvider } from './contexts/LiveContext';
 import Transcript from './components/Transcript';
@@ -11,6 +11,10 @@ import AssistantPanel from './components/AssistantPanel';
 
 const AppLayout: React.FC = () => {
   const { isSidebarOpen, setSidebarOpen, settings, viewMode } = useApp();
+
+  // Mobile Tab State: 'transcript' (default) or 'assistant'
+  // using boolean: false = transcript, true = assistant
+  const [isMobileAssistantOpen, setIsMobileAssistantOpen] = useState(false);
 
   // Map settings to Tailwind classes
   const fontFamilyClass = {
@@ -31,17 +35,21 @@ const AppLayout: React.FC = () => {
       {/* 1. Left Sidebar (History & Settings) */}
       <Sidebar />
 
-      {/* Sidebar Toggle specific for when it is closed */}
+      {/* Sidebar Toggle for when it is closed (Desktop/Mobile) */}
       {!isSidebarOpen && (
         <div className="absolute top-4 left-4 z-50">
-          <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg bg-surface border border-zinc-800 text-zinc-400 hover:text-white transition-colors shadow-lg">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg bg-surface border border-zinc-800 text-zinc-400 hover:text-white transition-colors shadow-lg backdrop-blur-sm bg-zinc-900/80"
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
         </div>
       )}
 
       {/* 2. Main Stage (Live) */}
-      <main className="flex-1 flex flex-col relative min-w-0 bg-background">
+      {/* On Mobile: Hidden if Assistant is OPEN */}
+      <main className={`flex-1 flex flex-col relative min-w-0 bg-background ${isMobileAssistantOpen ? 'hidden md:flex' : 'flex'}`}>
 
         {/* Background Ambient */}
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 opacity-40">
@@ -50,7 +58,8 @@ const AppLayout: React.FC = () => {
         </div>
 
         {/* Header/Status Bar */}
-        <header className="flex items-center justify-between px-6 py-3 border-b border-zinc-800/50 bg-background/50 backdrop-blur-sm z-10 shrink-0">
+        {/* Added pl-16 to avoid collision with hamburger button on mobile */}
+        <header className="flex items-center justify-between px-6 py-3 border-b border-zinc-800/50 bg-background/50 backdrop-blur-sm z-10 shrink-0 pl-16 md:pl-6">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></span>
             <span className="text-xs font-mono text-zinc-500 tracking-wider">系統就緒 ({settings.appName})</span>
@@ -61,13 +70,13 @@ const AppLayout: React.FC = () => {
           </div>
         </header>
 
-        {/* Content Container - Added padding for floating controls */}
-        <div className="flex-1 flex flex-col relative z-10 overflow-hidden min-h-0 pb-32 md:pb-24">
+        {/* Content Container */}
+        <div className="flex-1 flex flex-col relative z-10 overflow-hidden min-h-0 pb-0">
 
           {/* Visualizer Floating Overlay */}
-          {/* Visualizer Floating Overlay */}
           {viewMode === 'meeting' && (
-            <div className="absolute top-4 right-4 z-20 pointer-events-none opacity-50 mix-blend-screen">
+            <div className="absolute top-4 right-4 z-20 pointer-events-none opacity-50 mix-blend-screen hidden md:block">
+              {/* Hidden visualizer on mobile to save space/performance */}
               <AudioVisualizer />
             </div>
           )}
@@ -84,7 +93,8 @@ const AppLayout: React.FC = () => {
               </div>
 
               {/* Controls Bar */}
-              <div className="shrink-0 z-30">
+              {/* Added padding bottom on mobile to account for the bottom nav bar */}
+              <div className="shrink-0 z-30 pb-20 md:pb-0">
                 <Controls />
               </div>
             </>
@@ -93,7 +103,39 @@ const AppLayout: React.FC = () => {
       </main>
 
       {/* 3. Right Panel (Assistant) */}
-      {viewMode === 'meeting' && <AssistantPanel />}
+      {/* On Mobile: Visible ONLY if Assistant is OPEN */}
+      {viewMode === 'meeting' && (
+        <div className={`
+             md:flex md:static md:z-auto md:bg-transparent
+             ${isMobileAssistantOpen ? 'fixed inset-0 z-40 bg-background flex flex-col' : 'hidden'}
+         `}>
+          <AssistantPanel />
+        </div>
+      )}
+
+      {/* Mobile Bottom Navigation Bar (Visible ONLY on Mobile + Meeting Mode) */}
+      {viewMode === 'meeting' && (
+        <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm">
+          <div className="bg-zinc-900/90 backdrop-blur-xl border border-white/10 p-1 rounded-2xl shadow-2xl flex relative">
+            <button
+              onClick={() => setIsMobileAssistantOpen(false)}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all relative z-10 ${!isMobileAssistantOpen ? 'text-white font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+              <span className="text-sm">即時逐字稿</span>
+              {!isMobileAssistantOpen && <div className="absolute inset-0 bg-zinc-800 rounded-xl -z-10 shadow-inner"></div>}
+            </button>
+            <button
+              onClick={() => setIsMobileAssistantOpen(true)}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all relative z-10 ${isMobileAssistantOpen ? 'text-white font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              <span className="text-sm">AI 助手</span>
+              {isMobileAssistantOpen && <div className="absolute inset-0 bg-blue-600 rounded-xl -z-10 shadow-lg shadow-blue-500/20"></div>}
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
