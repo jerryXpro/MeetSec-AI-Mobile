@@ -99,7 +99,7 @@ const Controls: React.FC = () => {
     };
 
     return (
-        <div className="fixed bottom-0 left-0 w-full z-30 pointer-events-none flex flex-col items-center justify-end pb-4 md:pb-8">
+        <div className="fixed bottom-0 left-0 w-full z-30 pointer-events-none flex flex-col items-center justify-end pb-28 md:pb-8">
             <input
                 type="file"
                 ref={fileInputRef}
