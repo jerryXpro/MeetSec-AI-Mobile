@@ -236,11 +236,61 @@ const Controls: React.FC = () => {
                     </div>
 
                     {/* Desktop Only Extra Settings */}
-                    <div className="hidden md:flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                        {/* Voice Selector (Mobile & Desktop) */}
+                        <div className="relative">
+                            <button
+                                onClick={() => { setSidebarOpen(false); /* Close sidebar if open to avoid clash */ }}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    // Toggle logic handled by parent or local state? 
+                                    // Let's use a local state for this dropdown 
+                                    const el = document.getElementById('voice-dropdown');
+                                    if (el) el.classList.toggle('hidden');
+                                }}
+                                className="text-xs px-2 py-1.5 rounded-lg border border-white/10 bg-black/20 text-zinc-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5"
+                            >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                                <span>{settings.voiceName || 'Aoede'}</span>
+                            </button>
+
+                            {/* Dropdown Menu (Fixed Position to avoid clipping) */}
+                            <div id="voice-dropdown" className="hidden absolute bottom-full right-0 mb-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl overflow-hidden z-50 animate-fade-in-up">
+                                <div className="p-2 space-y-1">
+                                    <div className="text-[0.7em] text-zinc-500 font-bold px-2 py-1 uppercase tracking-wider">女聲 (Female)</div>
+                                    {['Aoede', 'Kore'].map(voice => (
+                                        <button
+                                            key={voice}
+                                            onClick={() => {
+                                                updateSettings({ voiceName: voice });
+                                                document.getElementById('voice-dropdown')?.classList.add('hidden');
+                                            }}
+                                            className={`w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors ${settings.voiceName === voice ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+                                        >
+                                            {voice}
+                                        </button>
+                                    ))}
+                                    <div className="text-[0.7em] text-zinc-500 font-bold px-2 py-1 uppercase tracking-wider mt-2">男聲 (Male)</div>
+                                    {['Puck', 'Charon', 'Fenrir'].map(voice => (
+                                        <button
+                                            key={voice}
+                                            onClick={() => {
+                                                updateSettings({ voiceName: voice });
+                                                document.getElementById('voice-dropdown')?.classList.add('hidden');
+                                            }}
+                                            className={`w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors ${settings.voiceName === voice ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+                                        >
+                                            {voice}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
                         <button
                             onClick={() => !isConnected && setUseSystemAudio(!useSystemAudio)}
                             disabled={isConnected}
-                            className={`text-xs px-2 py-1 rounded border transition-colors ${useSystemAudio ? 'border-blue-500 text-blue-400' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                            className={`hidden md:block text-xs px-2 py-1 rounded border transition-colors ${useSystemAudio ? 'border-blue-500 text-blue-400' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
                         >
                             {useSystemAudio ? '系統音訊' : '僅麥克風'}
                         </button>
