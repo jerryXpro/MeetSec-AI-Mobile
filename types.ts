@@ -27,7 +27,7 @@ export interface MeetingSession {
   actionItems?: string[];
 }
 
-export type LLMProvider = 'gemini' | 'openai' | 'ollama' | 'lmstudio' | 'anythingllm';
+export type LLMProvider = 'gemini' | 'openai';
 
 export type ThemePreset = 'professional' | 'ocean' | 'forest' | 'cyber' | 'sunset' | 'light';
 
@@ -44,14 +44,10 @@ export interface AppSettings {
   apiKeys: {
     gemini: string;
     openai: string;
-    anythingllm: string;
   };
   geminiTranscriptionModel: string;
   geminiAnalysisModel: string;
 
-  ollamaUrl: string;
-  lmStudioUrl: string;
-  anythingLlmUrl: string;
   currentProfileId: string;
   recordingLanguage: 'zh-TW' | 'en-US' | 'ja-JP';
   voiceName: string;
