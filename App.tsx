@@ -61,8 +61,8 @@ const AppLayout: React.FC = () => {
           </div>
         </header>
 
-        {/* Content Container */}
-        <div className="flex-1 flex flex-col relative z-10 overflow-hidden min-h-0">
+        {/* Content Container - Added padding for floating controls */}
+        <div className="flex-1 flex flex-col relative z-10 overflow-hidden min-h-0 pb-32 md:pb-24">
 
           {/* Visualizer Floating Overlay */}
           {/* Visualizer Floating Overlay */}
