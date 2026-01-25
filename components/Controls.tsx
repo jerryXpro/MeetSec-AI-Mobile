@@ -174,14 +174,14 @@ const Controls: React.FC = () => {
                         </form>
                     )}
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
                         {!isConnected && (
                             <input
                                 type="text"
                                 value={meetingTitle}
                                 onChange={(e) => setMeetingTitle(e.target.value)}
                                 placeholder="會議名稱..."
-                                className="md:block bg-transparent border-b border-zinc-700 text-center text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500 w-32 transition-colors pb-1 text-sm hidden"
+                                className="block bg-transparent border-b border-zinc-700 text-center text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500 w-full max-w-[200px] md:w-32 transition-colors pb-1 text-sm"
                             />
                         )}
 
