@@ -84,6 +84,22 @@ const RecorderTab: React.FC = () => {
         }
     }, [frequencyData, isRecording]);
 
+    // Audio Playback URL Management
+    const [audioUrl, setAudioUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (blob) {
+            const url = URL.createObjectURL(blob);
+            setAudioUrl(url);
+            return () => {
+                URL.revokeObjectURL(url);
+                setAudioUrl(null);
+            };
+        } else {
+            setAudioUrl(null);
+        }
+    }, [blob]);
+
     const handleSave = async () => {
         if (!blob) return;
         try {
@@ -171,16 +187,27 @@ const RecorderTab: React.FC = () => {
                     <div className="w-full text-center p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm animate-fade-in-up">{error}</div>
                 )}
 
-                {blob && !isRecording && (
-                    <div className="flex items-center gap-4 animate-fade-in-up mt-4 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700 w-full justify-between">
-                        <div className="flex flex-col">
-                            <span className="text-sm font-medium text-white">錄音完成</span>
-                            <span className="text-xs text-zinc-400">{(blob.size / 1024 / 1024).toFixed(2)} MB</span>
+                {blob && !isRecording && audioUrl && (
+                    <div className="flex flex-col items-center gap-4 animate-fade-in-up mt-4 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700 w-full">
+                        {/* Audio Player */}
+                        <div className="w-full">
+                            <audio
+                                controls
+                                src={audioUrl}
+                                className="w-full h-10 block rounded-lg focus:outline-none"
+                            />
                         </div>
-                        <button onClick={handleSave} className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm font-medium flex items-center gap-2 transition-colors">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                            儲存檔案
-                        </button>
+
+                        <div className="flex w-full items-center justify-between">
+                            <div className="flex flex-col">
+                                <span className="text-sm font-medium text-white">錄音完成</span>
+                                <span className="text-xs text-zinc-400">{(blob.size / 1024 / 1024).toFixed(2)} MB</span>
+                            </div>
+                            <button onClick={handleSave} className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm font-medium flex items-center gap-2 transition-colors">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                儲存檔案
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
