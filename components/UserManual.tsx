@@ -66,6 +66,9 @@ const USER_MANUAL_MD = `# MeetSec-AI 會議秘書與錄音工具 - 使用說明�
     *   **文字即時溝通 (Live Text Chat)**：會議進行中，您隨時可在下方對話框輸入文字與 AI 討論（例如：「剛剛說的重點是什麼？」），完全不會干擾語音錄製。
     *   **語音指令輸入**：點擊對話框右側的 **麥克風圖示**，即可將您的口述指令轉為文字發送給 AI。
     *   **常用指令 (Presets)**：分析面板內建「常用指令」清單，提供快速生成的提示詞模板。
+*   **進階控制 (New)**：
+    *   **AI 靜音/自動回應**：可開關 AI 自動回應功能，避免在不適合的時機打斷會議。
+    *   **音訊來源切換**：(桌面版) 支援切換「麥克風」或「系統音訊」，完美錄製線上會議內容。
 *   **檔案轉錄支援**：
     *   點擊上傳按鈕可上傳舊有錄音檔進行分析。
     *   **建議格式**：強烈建議使用 **MP3 格式**，以獲得最佳的相容性與傳輸速率。
@@ -186,7 +189,7 @@ A: 這表示您的 Google 或 OpenAI 帳戶免費用量已達上限。請等待�
 
 ---
 
-*MeetSec-AI User Manual v1.3*
+*MeetSec-AI User Manual v1.4*
 `;
 
 interface UserManualProps {
@@ -209,7 +212,7 @@ const UserManual: React.FC<UserManualProps> = ({ isOpen, onClose }) => {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
             <div
-                className="bg-surface border border-zinc-700 w-full max-w-4xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-up"
+                className="bg-surface border border-zinc-700 w-[95%] h-[95%] md:w-[80%] md:h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-up"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}

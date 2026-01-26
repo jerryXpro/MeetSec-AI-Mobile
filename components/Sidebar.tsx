@@ -288,7 +288,7 @@ const Sidebar: React.FC = () => {
                     width: window.innerWidth >= 768 ? width : '100%'
                 }}
             >
-                <UserManual isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
+
 
                 {/* Desktop Drag Handle */}
                 <div
@@ -609,6 +609,7 @@ const Sidebar: React.FC = () => {
                     onMouseDown={startResizing}
                 />
             </div>
+            <UserManual isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
         </>
     );
 };
