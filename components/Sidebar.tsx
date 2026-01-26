@@ -280,7 +280,7 @@ const Sidebar: React.FC = () => {
                 ref={sidebarRef}
                 className={`
                     glass 
-                    fixed bottom-0 left-0 w-full h-[95dvh] rounded-t-2xl z-50 transition-transform duration-300 transform translate-y-0
+                    fixed bottom-0 left-0 w-full h-[95dvh] rounded-t-2xl z-[200] transition-transform duration-300 transform translate-y-0
                     md:relative md:translate-y-0 md:h-full md:w-auto md:rounded-none md:border-r md:border-white/10 md:bg-black/20
                     flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.5)]
                 `}
@@ -488,15 +488,17 @@ const Sidebar: React.FC = () => {
                                         <div className="space-y-3">
                                             <label className="text-[0.85em] font-semibold text-zinc-400 uppercase tracking-wider">外觀主題</label>
                                             <div className="space-y-2">
-                                                {(Object.keys(THEME_PRESETS) as ThemePreset[]).map(key => (
-                                                    <button key={key} onClick={() => applyPreset(key)} className={`w-full flex items-center justify-between p-2 rounded-lg border transition-all ${settings.themePreset === key ? 'border-primary bg-primary/10 text-white' : 'border-zinc-800 bg-zinc-900/50 text-icon hover:bg-zinc-800'}`}>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-3 h-3 rounded-full" style={{ background: THEME_PRESETS[key].colors.primary }}></div>
-                                                            <span className="text-sm">{THEME_PRESETS[key].name}</span>
-                                                        </div>
-                                                        {settings.themePreset === key && <span className="text-[0.7em] text-primary/80">當前範本</span>}
-                                                    </button>
-                                                ))}
+                                                {(Object.keys(THEME_PRESETS) as ThemePreset[])
+                                                    .filter(key => key === 'ocean')
+                                                    .map(key => (
+                                                        <button key={key} onClick={() => applyPreset(key)} className={`w-full flex items-center justify-between p-2 rounded-lg border transition-all ${settings.themePreset === key ? 'border-primary bg-primary/10 text-white' : 'border-zinc-800 bg-zinc-900/50 text-icon hover:bg-zinc-800'}`}>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-3 h-3 rounded-full" style={{ background: THEME_PRESETS[key].colors.primary }}></div>
+                                                                <span className="text-sm">{THEME_PRESETS[key].name}</span>
+                                                            </div>
+                                                            {settings.themePreset === key && <span className="text-[0.7em] text-primary/80">當前範本</span>}
+                                                        </button>
+                                                    ))}
                                             </div>
                                             <div className="mt-4 pt-4 border-t border-zinc-800/50">
                                                 <label className="text-[0.85em] font-semibold text-zinc-400 uppercase tracking-wider mb-3 block">細節微調</label>
