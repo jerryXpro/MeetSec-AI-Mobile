@@ -210,7 +210,7 @@ const UserManual: React.FC<UserManualProps> = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
             <div
                 className="bg-surface border border-zinc-700 w-[95%] h-[95%] md:w-[80%] md:h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-up"
                 onClick={e => e.stopPropagation()}
