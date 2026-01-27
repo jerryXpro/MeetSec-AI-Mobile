@@ -554,6 +554,26 @@ const Sidebar: React.FC = () => {
                                                 </select>
                                             </div>
 
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[0.8em] text-zinc-500 block">麥克風靈敏度 (Noise Gate)</span>
+                                                    <span className="text-[0.75em] text-zinc-400 font-mono">{(settings.noiseThreshold ?? 0.002).toFixed(3)}</span>
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="0.5"
+                                                    step="0.005"
+                                                    value={settings.noiseThreshold ?? 0.002}
+                                                    onChange={(e) => updateSettings({ noiseThreshold: parseFloat(e.target.value) })}
+                                                    className="w-full accent-primary h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer"
+                                                />
+                                                <div className="flex justify-between text-[0.7em] text-zinc-600">
+                                                    <span>高靈敏 (低門檻)</span>
+                                                    <span>低靈敏 (高門檻)</span>
+                                                </div>
+                                            </div>
+
                                             {/* AI Provider Settings */}
                                             <div className="space-y-2 pt-2 border-t border-zinc-800">
                                                 <span className="text-[0.8em] text-zinc-500 block">AI 供應商</span>

@@ -94,7 +94,7 @@ const AppLayout: React.FC = () => {
 
               {/* Controls Bar */}
               {/* Added padding bottom on mobile to account for the bottom nav bar + raised controls */}
-              <div className="shrink-0 z-30 pb-40 md:pb-0">
+              <div className="shrink-0 z-30 pb-24 md:pb-0">
                 <Controls />
               </div>
             </>

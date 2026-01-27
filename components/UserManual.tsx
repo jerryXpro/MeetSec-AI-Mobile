@@ -192,6 +192,8 @@ A: 這表示您的 Google 或 OpenAI 帳戶免費用量已達上限。請等待�
 *MeetSec-AI User Manual v1.4*
 `;
 
+const STORAGE_KEY = 'meetsec_user_manual_content';
+
 interface UserManualProps {
     isOpen: boolean;
     onClose: () => void;
@@ -199,13 +201,46 @@ interface UserManualProps {
 
 const UserManual: React.FC<UserManualProps> = ({ isOpen, onClose }) => {
     const [htmlContent, setHtmlContent] = useState('');
+    const [markdownContent, setMarkdownContent] = useState(USER_MANUAL_MD);
+    const [isEditing, setIsEditing] = useState(false);
 
+    // Initialize content from local storage or default
+    useEffect(() => {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            setMarkdownContent(saved);
+        } else {
+            setMarkdownContent(USER_MANUAL_MD);
+        }
+    }, []);
+
+    // Update HTML when markdown changes or dialog opens
     useEffect(() => {
         if (isOpen) {
-            const parsed = marked.parse(USER_MANUAL_MD);
+            const parsed = marked.parse(markdownContent);
             setHtmlContent(parsed as string);
         }
-    }, [isOpen]);
+    }, [isOpen, markdownContent]);
+
+    const handleSave = () => {
+        localStorage.setItem(STORAGE_KEY, markdownContent);
+        setIsEditing(false);
+    };
+
+    const handleCancel = () => {
+        // Revert to saved content
+        const saved = localStorage.getItem(STORAGE_KEY);
+        setMarkdownContent(saved || USER_MANUAL_MD);
+        setIsEditing(false);
+    };
+
+    const handleReset = () => {
+        if (window.confirm('確定要還原成預設說明書嗎？您的修改將會遺失。')) {
+            setMarkdownContent(USER_MANUAL_MD);
+            localStorage.removeItem(STORAGE_KEY);
+            setIsEditing(false);
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -220,22 +255,71 @@ const UserManual: React.FC<UserManualProps> = ({ isOpen, onClose }) => {
                     <h2 className="text-xl font-bold flex items-center gap-2 text-primary">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                         使用說明書 (User Manual)
+                        {isEditing && <span className="text-sm text-zinc-400 font-normal ml-2">(編輯模式)</span>}
                     </h2>
-                    <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 hover:text-white">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                        {!isEditing ? (
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-sm transition-colors flex items-center gap-1"
+                                title="編輯說明書"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                編輯
+                            </button>
+                        ) : (
+                            <>
+                                <button
+                                    onClick={handleReset}
+                                    className="px-3 py-1.5 bg-red-900/50 hover:bg-red-900 text-red-200 rounded-lg text-sm transition-colors"
+                                    title="還原預設值"
+                                >
+                                    還原預設
+                                </button>
+                                <button
+                                    onClick={handleCancel}
+                                    className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 rounded-lg text-sm transition-colors"
+                                >
+                                    取消
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-sm transition-colors flex items-center gap-1"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                    儲存
+                                </button>
+                            </>
+                        )}
+                        <div className="w-px h-6 bg-zinc-700 mx-1"></div>
+                        <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 hover:text-white">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                    <div
-                        className="prose prose-invert prose-lg max-w-none 
-                        prose-headings:text-zinc-100 prose-p:text-zinc-300 prose-li:text-zinc-300 
-                        prose-strong:text-primary prose-a:text-blue-400 
-                        prose-img:rounded-xl prose-img:shadow-lg prose-img:border prose-img:border-zinc-800
-                        prose-blockquote:border-l-primary prose-blockquote:bg-zinc-800/30 prose-blockquote:p-4 prose-blockquote:rounded-r-lg"
-                        dangerouslySetInnerHTML={{ __html: htmlContent }}
-                    />
+                <div className="flex-1 overflow-hidden relative">
+                    {isEditing ? (
+                        <textarea
+                            className="w-full h-full bg-zinc-950 p-6 text-zinc-300 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            value={markdownContent}
+                            onChange={(e) => setMarkdownContent(e.target.value)}
+                            spellCheck={false}
+                        />
+                    ) : (
+                        <div className="h-full overflow-y-auto p-8 custom-scrollbar">
+                            <div
+                                className="prose prose-invert prose-lg max-w-none 
+                                prose-headings:text-zinc-100 prose-p:text-zinc-300 prose-li:text-zinc-300 
+                                prose-strong:text-primary prose-a:text-blue-400 
+                                prose-img:rounded-xl prose-img:shadow-lg prose-img:border prose-img:border-zinc-800
+                                prose-blockquote:border-l-primary prose-blockquote:bg-zinc-800/30 prose-blockquote:p-4 prose-blockquote:rounded-r-lg"
+                                dangerouslySetInnerHTML={{ __html: htmlContent }}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
