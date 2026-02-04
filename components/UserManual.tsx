@@ -182,7 +182,7 @@ A: 這表示您所有的 API Key 免費用量皆達上限。
 *MeetSec-AI User Manual v1.5*
 `;
 
-const STORAGE_KEY = 'meetsec_user_manual_content';
+const STORAGE_KEY = 'meetsec_user_manual_content_v1_5';
 
 interface UserManualProps {
     isOpen: boolean;
