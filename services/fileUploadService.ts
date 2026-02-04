@@ -50,7 +50,7 @@ const transcribeWithGemini = async (file: File, settings: AppSettings): Promise<
 
   // 2. Initialize Client
   const ai = new GoogleGenAI({ apiKey: settings.apiKeys.gemini });
-  const modelName = settings.geminiTranscriptionModel || 'gemini-2.0-flash-exp';
+  const modelName = settings.geminiTranscriptionModel || 'gemini-2.0-flash';
 
   // 3. System Prompt
   const languageInstruction = settings.recordingLanguage === 'ja-JP'

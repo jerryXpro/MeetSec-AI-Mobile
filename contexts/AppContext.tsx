@@ -80,8 +80,8 @@ const defaultSettings: AppSettings = {
   userName: 'User',
   provider: 'gemini',
   apiKeys: { gemini: '', openai: '' },
-  geminiTranscriptionModel: 'gemini-2.0-flash-exp',
-  geminiAnalysisModel: 'gemini-2.0-flash-exp',
+  geminiTranscriptionModel: 'gemini-2.0-flash',
+  geminiAnalysisModel: 'gemini-2.0-flash',
   currentProfileId: 'default',
   recordingLanguage: 'zh-TW',
   voiceName: 'Aoede',
@@ -107,6 +107,8 @@ const defaultSettings: AppSettings = {
   noiseThreshold: 0.002 // Default high sensitivity
 };
 
+// ... (lines 110-117 omitted)
+
 const defaultProfile: KnowledgeProfile = {
   id: 'default',
   name: '一般會議 (預設)',
@@ -131,9 +133,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!merged.assistantWidth) merged.assistantWidth = 384;
       if (!merged.presetCommands) merged.presetCommands = defaultPresets; // Init presets if missing
 
-      // Force update model if old saved setting is using deprecated model
-      if (merged.geminiTranscriptionModel === 'gemini-1.5-flash') merged.geminiTranscriptionModel = 'gemini-2.0-flash-exp';
-      if (merged.geminiAnalysisModel === 'gemini-1.5-flash') merged.geminiAnalysisModel = 'gemini-2.0-flash-exp';
+      // Auto-fix deprecated models
+      if (merged.geminiTranscriptionModel === 'gemini-1.5-flash' || merged.geminiTranscriptionModel === 'gemini-2.0-flash-exp') {
+        merged.geminiTranscriptionModel = 'gemini-2.0-flash';
+      }
+      if (merged.geminiAnalysisModel === 'gemini-1.5-flash' || merged.geminiAnalysisModel === 'gemini-2.0-flash-exp') {
+        merged.geminiAnalysisModel = 'gemini-2.0-flash';
+      }
       return merged;
     } catch (e) { return defaultSettings; }
   });
