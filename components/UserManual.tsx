@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { marked } from 'marked';
 
-const USER_MANUAL_MD = \`# MeetSec-AI 會議秘書與錄音工具 - 使用說明書
+const USER_MANUAL_MD = `# MeetSec-AI 會議秘書與錄音工具 - 使用說明書
 
 ![Cover Image](./manual_images/cover_image.png)
 
@@ -133,8 +133,8 @@ const USER_MANUAL_MD = \`# MeetSec-AI 會議秘書與錄音工具 - 使用說明
     *   **運作原理**：系統會自動輪替使用。當第一組 Key 額度用盡 (Quota Exceeded) 時，會自動無縫切換到下一組，讓您的會議不中斷。
 
 2.  **智慧降級機制 (Auto Fallback)**：
-    *   若所有 Key 的 `Gemini 2.0 Flash` (預設模型) 額度皆耗盡，系統會自動嘗試降級至 `Gemini 1.5 Flash`。
-    *   `1.5 Flash` 通常擁有更寬鬆的免費額度，確保服務的高可用性。
+    *   若所有 Key 的 \`Gemini 2.0 Flash\` (預設模型) 額度皆耗盡，系統會自動嘗試降級至 \`Gemini 1.5 Flash\`。
+    *   \`1.5 Flash\` 通常擁有更寬鬆的免費額度，確保服務的高可用性。
 
 > [!TIP]
 > **如何取得 Google Gemini API Key？**
@@ -180,7 +180,7 @@ A: 這表示您所有的 API Key 免費用量皆達上限。
 ---
 
 *MeetSec-AI User Manual v1.5*
-\`;
+`;
 
 const STORAGE_KEY = 'meetsec_user_manual_content';
 
