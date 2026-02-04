@@ -23,6 +23,11 @@ const RecorderTab: React.FC = () => {
     const [selectedMicId, setSelectedMicId] = useState<string>(settings.selectedMicrophoneId || '');
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
+    // Analysis State
+    const [isSummarizing, setIsSummarizing] = useState(false);
+    const [summaryResult, setSummaryResult] = useState<string | null>(null);
+    const [analysisError, setAnalysisError] = useState<string | null>(null);
+
     // Fetch Devices
     useEffect(() => {
         const getDevices = async () => {
@@ -48,6 +53,14 @@ const RecorderTab: React.FC = () => {
             setSelectedMicId(settings.selectedMicrophoneId);
         }
     }, [settings.selectedMicrophoneId]);
+
+    // Reset summary when starting new recording
+    useEffect(() => {
+        if (isRecording) {
+            setSummaryResult(null);
+            setAnalysisError(null);
+        }
+    }, [isRecording]);
 
     const formatTime = (seconds: number) => {
         const h = Math.floor(seconds / 3600);
@@ -127,8 +140,36 @@ const RecorderTab: React.FC = () => {
         }
     };
 
+    const handleGenerateSummary = async () => {
+        if (!blob) return;
+        setIsSummarizing(true);
+        setAnalysisError(null);
+        setSummaryResult(null);
+
+        try {
+            // 1. Create File object
+            const file = new File([blob], `recording.${selectedFormat}`, { type: blob.type });
+
+            // 2. Transcribe
+            // Dynamically import to avoid circular dependency issues if any, ensuring clean separation
+            const { transcribeAudioFile } = await import('../services/fileUploadService');
+            const transcript = await transcribeAudioFile(file, settings);
+
+            // 3. Summarize
+            const { generateSummaryFromText } = await import('../services/analysisService');
+            const summary = await generateSummaryFromText(transcript, settings, formatTime(duration));
+
+            setSummaryResult(summary);
+        } catch (err: any) {
+            console.error("Summary generation failed", err);
+            setAnalysisError(err.message || "生成摘要失敗");
+        } finally {
+            setIsSummarizing(false);
+        }
+    };
+
     return (
-        <div className="flex flex-col items-center justify-start pt-16 h-full w-full max-w-2xl mx-auto animate-fade-in">
+        <div className="flex flex-col items-center justify-start pt-16 h-full w-full max-w-2xl mx-auto animate-fade-in pb-10">
             {/* Visualizer Area */}
             <div className="relative w-full h-64 bg-zinc-900/50 rounded-xl border border-zinc-800 mb-8 overflow-hidden flex items-center justify-center shadow-inner">
                 <canvas ref={canvasRef} width={600} height={250} className="w-full h-full opacity-80" />
@@ -188,7 +229,7 @@ const RecorderTab: React.FC = () => {
                 )}
 
                 {blob && !isRecording && audioUrl && (
-                    <div className="flex flex-col items-center gap-4 animate-fade-in-up mt-4 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700 w-full">
+                    <div className="flex flex-col items-center gap-4 animate-fade-in-up mt-4 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700 w-full mb-4">
                         {/* Audio Player */}
                         <div className="w-full">
                             <audio
@@ -198,16 +239,47 @@ const RecorderTab: React.FC = () => {
                             />
                         </div>
 
-                        <div className="flex w-full items-center justify-between">
-                            <div className="flex flex-col">
-                                <span className="text-sm font-medium text-white">錄音完成</span>
-                                <span className="text-xs text-zinc-400">{(blob.size / 1024 / 1024).toFixed(2)} MB</span>
-                            </div>
-                            <button onClick={handleSave} className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm font-medium flex items-center gap-2 transition-colors">
+                        <div className="flex w-full items-center gap-2">
+                            <button
+                                onClick={handleGenerateSummary}
+                                disabled={isSummarizing}
+                                className="flex-1 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                            >
+                                {isSummarizing ? (
+                                    <>
+                                        <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        分析中...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                        生成摘要 (AI)
+                                    </>
+                                )}
+                            </button>
+
+                            <button onClick={handleSave} className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-md text-sm font-medium flex items-center gap-2 transition-colors">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                儲存檔案
+                                下載
                             </button>
                         </div>
+
+                        {analysisError && (
+                            <div className="w-full text-center p-2 bg-red-500/10 border border-red-500/30 rounded text-red-300 text-xs animate-fade-in">
+                                {analysisError}
+                            </div>
+                        )}
+
+                        {summaryResult && (
+                            <div className="w-full mt-2 animate-fade-in-up">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">分析結果</h3>
+                                </div>
+                                <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-3 max-h-[300px] overflow-y-auto custom-scrollbar text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                                    {summaryResult}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

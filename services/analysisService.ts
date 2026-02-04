@@ -44,9 +44,57 @@ export const generateMeetingMinutes = async (
         throw new Error("尚無逐字稿內容或補充資料。請確保麥克風已開啟並開始說話，或上傳檔案，或輸入特定指令。");
     }
 
+    const systemPrompt = buildSummaryPrompt(
+        transcript,
+        settings.appName,
+        meetingTitle,
+        meetingDate,
+        meetingDuration,
+        customInstruction,
+        filesContent,
+        hasFiles
+    );
+
+    return await callLLM(systemPrompt, settings);
+};
+
+export const generateSummaryFromText = async (
+    transcriptText: string,
+    settings: AppSettings,
+    durationStr: string = "未知",
+    customInstruction?: string
+): Promise<string> => {
+    const meetingTitle = "錄音檔分析";
+    const now = new Date();
+    const meetingDate = now.toLocaleDateString('zh-TW');
+
+    const systemPrompt = buildSummaryPrompt(
+        transcriptText,
+        settings.appName,
+        meetingTitle,
+        meetingDate,
+        durationStr,
+        customInstruction,
+        "",
+        false
+    );
+
+    return await callLLM(systemPrompt, settings);
+};
+
+const buildSummaryPrompt = (
+    transcript: string,
+    appName: string,
+    meetingTitle: string,
+    meetingDate: string,
+    meetingDuration: string,
+    customInstruction: string | undefined,
+    filesContent: string,
+    hasFiles: boolean
+): string => {
     const basePrompt = `
 # 角色設定
-你是一位專精於商業會議與學術討論的『${settings.appName} 執行秘書』。你的語氣專業、客觀且結構條理分明。
+你是一位專精於商業會議與學術討論的『${appName} 執行秘書』。你的語氣專業、客觀且結構條理分明。
 
 # 任務
 分析提供的會議逐字稿與補充資料，並生成一份完整的『會議後報告』。
@@ -91,7 +139,6 @@ export const generateMeetingMinutes = async (
 - **格式:** 針對關鍵術語或重點使用 **粗體** 標示。
 `;
 
-    // Apply custom instruction logic
     let finalPrompt = basePrompt;
 
     if (customInstruction && customInstruction.trim()) {
@@ -117,7 +164,9 @@ ${basePrompt}
       `;
     }
 
-    const systemPrompt = `
+    const hasTranscript = transcript && transcript.trim().length > 0;
+
+    return `
 ${finalPrompt}
 
 ---
@@ -130,8 +179,6 @@ ${hasFiles ? filesContent : "(無)"}
 【會議逐字稿內容】
 ${hasTranscript ? transcript : "(目前尚無逐字稿內容)"}
   `;
-
-    return await callLLM(systemPrompt, settings);
 };
 
 export const chatWithTranscript = async (
