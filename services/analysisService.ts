@@ -225,78 +225,87 @@ export const chatWithTranscript = async (
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function callLLM(prompt: string, settings: AppSettings, retries = 3): Promise<string> {
-    try {
-        if (settings.provider === 'gemini') {
-            if (!settings.apiKeys.gemini) throw new Error("請先在設定中輸入 Gemini API Key。");
+async function callLLM(prompt: string, settings: AppSettings): Promise<string> {
 
-            // Use hardcoded model if not set, BUT respect the user setting if present.
-            const modelName = settings.geminiAnalysisModel || 'gemini-2.0-flash-exp';
+    // --- OpenAI Handling (Kept simple) ---
+    if (settings.provider === 'openai') {
+        if (!settings.apiKeys.openai) throw new Error("請先在設定中輸入 OpenAI API Key。");
 
-            const ai = new GoogleGenAI({ apiKey: settings.apiKeys.gemini });
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${settings.apiKeys.openai}`
+            },
+            body: JSON.stringify({
+                model: "gpt-4o",
+                messages: [
+                    { role: "system", content: `You are ${settings.appName}, a helpful meeting assistant.` },
+                    { role: "user", content: prompt }
+                ]
+            })
+        });
 
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(`OpenAI Error: ${err.error?.message || response.statusText}`);
+        }
+
+        const data = await response.json();
+        return data.choices?.[0]?.message?.content || "OpenAI 未回傳任何內容。";
+    }
+
+    // --- Gemini Handling with Rotation & Fallback ---
+    if (settings.provider === 'gemini') {
+        const rawKeys = settings.apiKeys.gemini;
+        if (!rawKeys) throw new Error("請先在設定中輸入 Gemini API Key。");
+
+        const keys = rawKeys.split(/[,;\n]+/).map(k => k.trim()).filter(k => k.length > 0);
+        if (keys.length === 0) throw new Error("無效的 Gemini API Key");
+
+        const executeGemini = async (key: string, model: string): Promise<string> => {
+            // console.log(`[Gemini Analysis] Model: ${model} Key: ...${key.slice(-4)}`);
+            const ai = new GoogleGenAI({ apiKey: key });
             const response = await ai.models.generateContent({
-                model: modelName,
+                model: model,
                 contents: {
                     role: 'user',
                     parts: [{ text: prompt }]
                 }
             });
             return response.text || "Gemini 未回傳任何內容。";
-        }
+        };
 
-        if (settings.provider === 'openai') {
-            if (!settings.apiKeys.openai) throw new Error("請先在設定中輸入 OpenAI API Key。");
-
-            const response = await fetch("https://api.openai.com/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${settings.apiKeys.openai}`
-                },
-                body: JSON.stringify({
-                    model: "gpt-4o",
-                    messages: [
-                        { role: "system", content: `You are ${settings.appName}, a helpful meeting assistant.` },
-                        { role: "user", content: prompt }
-                    ]
-                })
-            });
-
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(`OpenAI Error: ${err.error?.message || response.statusText}`);
+        const tryKeysForModel = async (model: string): Promise<string | null> => {
+            for (const key of keys) {
+                try {
+                    return await executeGemini(key, model);
+                } catch (err: any) {
+                    const msg = err.message || '';
+                    if (msg.includes('429') || msg.includes('Quota') || msg.includes('RESOURCE_EXHAUSTED')) {
+                        console.warn(`[Gemini] Key ...${key.slice(-4)} quota exhausted on ${model}. Trying next...`);
+                        continue;
+                    }
+                    throw err; // Other errors (400, 500) fail fast usually
+                }
             }
+            return null; // All keys exhausted for this model
+        };
 
-            const data = await response.json();
-            return data.choices?.[0]?.message?.content || "OpenAI 未回傳任何內容。";
+        // 1. Try Primary Model (user setting or default 2.0-flash)
+        const primaryModel = settings.geminiAnalysisModel || 'gemini-2.0-flash';
+        let result = await tryKeysForModel(primaryModel);
+        if (result) return result;
+
+        // 2. Fallback to 1.5-flash if primary wasn't 1.5-flash
+        if (primaryModel !== 'gemini-1.5-flash') {
+            console.warn(`[Gemini] All keys failed on ${primaryModel}. Falling back to gemini-1.5-flash...`);
+            result = await tryKeysForModel('gemini-1.5-flash');
+            if (result) return result;
         }
 
-
-
-        throw new Error(`供應商 ${settings.provider} 尚未實作。`);
-
-    } catch (error: any) {
-        // Handle Rate Limiting (429) specifically
-        if (retries > 0 && (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED') || error.status === 429)) {
-            // Try to extract wait time from error message, e.g., "Please retry in 57.89569092s."
-            let waitSeconds = 20;
-            const match = error.message?.match(/retry in\s+([0-9.]+)\s*s/i);
-            if (match && match[1]) {
-                waitSeconds = Math.ceil(parseFloat(match[1])) + 2; // Add 2s buffer
-            } else if (error.message?.includes('Quota exceeded')) {
-                // Fallback for quota exceeded which might be longer
-                waitSeconds = 60;
-            }
-
-            console.warn(`Rate limit hit. Retrying in ${waitSeconds}s... (${retries} retries left)`);
-
-            // Wait
-            await sleep(waitSeconds * 1000);
-            return callLLM(prompt, settings, retries - 1);
-        }
-
-        console.error("LLM Error:", error);
-        throw new Error(error.message || "AI 處理失敗。");
+        throw new Error("Gemini 配額不足 (所有 Key 皆已耗盡)。請稍後再試。");
     }
+
+    throw new Error(`供應商 ${settings.provider} 尚未實作。`);
 }

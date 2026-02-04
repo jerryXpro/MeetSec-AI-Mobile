@@ -592,8 +592,11 @@ const Sidebar: React.FC = () => {
 
                                             {settings.provider === 'gemini' && (
                                                 <div className="space-y-1">
-                                                    <span className="text-[0.8em] text-zinc-500">Gemini API Key</span>
-                                                    <ApiKeyInput value={settings.apiKeys.gemini} onChange={(val) => updateSettings({ apiKeys: { ...settings.apiKeys, gemini: val } })} placeholder="AIza..." />
+                                                    <div className="flex justify-between">
+                                                        <span className="text-[0.8em] text-zinc-500">Gemini API Key</span>
+                                                        <span className="text-[0.7em] text-blue-400 cursor-pointer" title="可輸入多個 Key (用逗號隔開) 以自動輪替">多重 Key 支援 ⓘ</span>
+                                                    </div>
+                                                    <ApiKeyInput value={settings.apiKeys.gemini} onChange={(val) => updateSettings({ apiKeys: { ...settings.apiKeys, gemini: val } })} placeholder="Key1, Key2, ..." />
                                                 </div>
                                             )}
 
