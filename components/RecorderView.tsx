@@ -171,8 +171,8 @@ const RecorderTab: React.FC = () => {
     return (
         <div className="flex flex-col items-center justify-start pt-16 h-full w-full max-w-2xl mx-auto animate-fade-in pb-10">
             {/* Visualizer Area */}
-            <div className="relative w-full h-64 bg-zinc-900/50 rounded-xl border border-zinc-800 mb-8 overflow-hidden flex items-center justify-center shadow-inner">
-                <canvas ref={canvasRef} width={600} height={250} className="w-full h-full opacity-80" />
+            <div className="relative w-full h-32 bg-zinc-900/50 rounded-xl border border-zinc-800 mb-8 overflow-hidden flex items-center justify-center shadow-inner">
+                <canvas ref={canvasRef} width={600} height={128} className="w-full h-full opacity-80" />
                 {!isRecording && !blob && (
                     <div className="absolute text-zinc-600 text-sm font-mono">等待錄音...</div>
                 )}
