@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useApp, THEME_PRESETS } from '../contexts/AppContext';
 import { useLive } from '../hooks/useLive';
 import { parseFileToText } from '../utils/fileParser';
+import { testGeminiConnection } from '../services/geminiLive';
 import { KnowledgeProfile, ProfileDocument, ThemePreset, LLMProvider, AppSettings } from '../types';
 
 import UserManual from './UserManual';
@@ -81,6 +82,9 @@ const Sidebar: React.FC = () => {
     const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
     const [isCreatingProfile, setIsCreatingProfile] = useState(false);
     const [newProfileName, setNewProfileName] = useState("");
+
+    const [isTesting, setIsTesting] = useState(false);
+    const [testResult, setTestResult] = useState<{ success: boolean, message: string } | null>(null);
 
     const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
 
@@ -597,6 +601,49 @@ const Sidebar: React.FC = () => {
                                                         <span className="text-[0.7em] text-blue-400 cursor-pointer" title="可輸入多個 Key (用逗號隔開) 以自動輪替">多重 Key 支援 ⓘ</span>
                                                     </div>
                                                     <ApiKeyInput value={settings.apiKeys.gemini} onChange={(val) => updateSettings({ apiKeys: { ...settings.apiKeys, gemini: val } })} placeholder="Key1, Key2, ..." />
+
+                                                    <div className="pt-2 space-y-2">
+                                                        <span className="text-[0.8em] text-zinc-500 block">Gemini 模型 (Live)</span>
+                                                        <select
+                                                            value={settings.geminiLiveModel || 'gemini-2.0-flash-exp'}
+                                                            onChange={(e) => updateSettings({ geminiLiveModel: e.target.value })}
+                                                            className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none"
+                                                        >
+                                                            <option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
+                                                            <option value="gemini-3-flash-preview">Gemini 3.0 Flash Preview</option>
+                                                            <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                                            <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                                                            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div className="pt-2">
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (!settings.apiKeys.gemini) {
+                                                                    setTestResult({ success: false, message: "請先輸入 API Key" });
+                                                                    return;
+                                                                }
+                                                                setIsTesting(true);
+                                                                setTestResult(null);
+                                                                // Use the first key for testing
+                                                                const firstKey = settings.apiKeys.gemini.split(',')[0].trim();
+                                                                const result = await testGeminiConnection(firstKey, settings.geminiLiveModel || 'gemini-2.0-flash-exp');
+                                                                setTestResult(result);
+                                                                setIsTesting(false);
+                                                            }}
+                                                            disabled={isTesting}
+                                                            className={`w-full py-1.5 rounded text-xs border transition-all ${isTesting ? 'bg-zinc-800 text-zinc-500 border-zinc-800' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'}`}
+                                                        >
+                                                            {isTesting ? "連線測試中..." : "測試連線 (Test Connection)"}
+                                                        </button>
+                                                        {testResult && (
+                                                            <div className={`mt-2 text-[0.75em] px-2 py-1 rounded border ${testResult.success ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                                                {testResult.message}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             )}
 

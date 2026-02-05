@@ -82,6 +82,7 @@ const defaultSettings: AppSettings = {
   apiKeys: { gemini: '', openai: '' },
   geminiTranscriptionModel: 'gemini-2.0-flash',
   geminiAnalysisModel: 'gemini-2.0-flash',
+  geminiLiveModel: 'gemini-2.0-flash-exp',
   currentProfileId: 'default',
   recordingLanguage: 'zh-TW',
   voiceName: 'Aoede',
@@ -134,11 +135,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!merged.presetCommands) merged.presetCommands = defaultPresets; // Init presets if missing
 
       // Auto-fix deprecated models
-      if (merged.geminiTranscriptionModel === 'gemini-1.5-flash' || merged.geminiTranscriptionModel === 'gemini-2.0-flash-exp') {
-        merged.geminiTranscriptionModel = 'gemini-2.0-flash';
+      if (merged.geminiTranscriptionModel === 'gemini-1.5-flash' || merged.geminiTranscriptionModel === 'gemini-1.5-pro') {
+        merged.geminiTranscriptionModel = 'gemini-2.5-flash';
       }
-      if (merged.geminiAnalysisModel === 'gemini-1.5-flash' || merged.geminiAnalysisModel === 'gemini-2.0-flash-exp') {
-        merged.geminiAnalysisModel = 'gemini-2.0-flash';
+      if (merged.geminiAnalysisModel === 'gemini-1.5-flash' || merged.geminiAnalysisModel === 'gemini-1.5-pro') {
+        merged.geminiAnalysisModel = 'gemini-2.5-flash';
       }
       return merged;
     } catch (e) { return defaultSettings; }

@@ -47,6 +47,7 @@ export interface AppSettings {
   };
   geminiTranscriptionModel: string;
   geminiAnalysisModel: string;
+  geminiLiveModel: string;
 
   currentProfileId: string;
   recordingLanguage: 'zh-TW' | 'en-US' | 'ja-JP';

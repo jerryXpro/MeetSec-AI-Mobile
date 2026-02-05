@@ -297,10 +297,10 @@ async function callLLM(prompt: string, settings: AppSettings): Promise<string> {
         let result = await tryKeysForModel(primaryModel);
         if (result) return result;
 
-        // 2. Fallback to 1.5-flash if primary wasn't 1.5-flash
-        if (primaryModel !== 'gemini-1.5-flash') {
-            console.warn(`[Gemini] All keys failed on ${primaryModel}. Falling back to gemini-1.5-flash...`);
-            result = await tryKeysForModel('gemini-1.5-flash');
+        // 2. Fallback to gemini-2.5-flash-lite if primary wasn't it
+        if (primaryModel !== 'gemini-2.5-flash-lite') {
+            console.warn(`[Gemini] All keys failed on ${primaryModel}. Falling back to gemini-2.5-flash-lite...`);
+            result = await tryKeysForModel('gemini-2.5-flash-lite');
             if (result) return result;
         }
 

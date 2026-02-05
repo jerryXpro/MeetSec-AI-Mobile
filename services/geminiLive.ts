@@ -527,3 +527,30 @@ export class GeminiLiveService {
     this.modelAudioChunks = [];
   }
 }
+
+export const testGeminiConnection = async (apiKey: string, modelName: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    // Attempt to make a minimal call to verify credentials and model availability
+    try {
+      // Simply instantiating shouldn't fail, we need to make a request.
+      // We use generateContent with a very small prompt.
+      await ai.models.generateContent({
+        model: modelName,
+        contents: { role: 'user', parts: [{ text: "Test" }] }
+      });
+      return { success: true, message: "連線成功！(Service Operational)" };
+    } catch (e: any) {
+      console.warn("Connection test warning:", e);
+      if (e.message?.includes("API key")) {
+        return { success: false, message: "API Key 無效或過期" };
+      }
+      if (e.message?.includes("not found") || e.message?.includes("model")) {
+        return { success: false, message: `模型 ${modelName} 不存在或無法存取` };
+      }
+      return { success: false, message: e.message || "連線失敗" };
+    }
+  } catch (error: any) {
+    return { success: false, message: error.message || "連線測試失敗" };
+  }
+};
