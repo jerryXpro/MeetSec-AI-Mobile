@@ -3,6 +3,7 @@ import { useApp, THEME_PRESETS } from '../contexts/AppContext';
 import { useLive } from '../hooks/useLive';
 import { parseFileToText } from '../utils/fileParser';
 import { testGeminiConnection } from '../services/geminiLive';
+import { testOpenRouterConnection, testCustomConnection } from '../services/analysisService';
 import { KnowledgeProfile, ProfileDocument, ThemePreset, LLMProvider, AppSettings } from '../types';
 
 import UserManual from './UserManual';
@@ -385,7 +386,6 @@ const Sidebar: React.FC = () => {
                                 </div>
                             </div>
                         )}
-
                         {/* TAB 2: 功能設定 (SETTINGS) */}
                         {isSettingsTabActive && (
                             <div className="space-y-5 animate-fade-in-right">
@@ -582,109 +582,282 @@ const Sidebar: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            {/* AI Provider Settings */}
-                                            <div className="space-y-2 pt-2 border-t border-zinc-800">
-                                                <span className="text-[0.8em] text-zinc-500 block">AI 供應商</span>
-                                                <select value={settings.provider} onChange={(e) => updateSettings({ provider: e.target.value as LLMProvider })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none">
-                                                    <option value="gemini">Google Gemini</option>
-                                                    <option value="openai">OpenAI (GPT)</option>
-                                                </select>
-                                            </div>
-
-                                            {settings.provider === 'openai' && (
+                                            {/* --- Section 1: Live Recording (ALWAYS Semantic) --- */}
+                                            <div className="space-y-4 pt-2 border-t border-zinc-800">
                                                 <div className="space-y-1">
-                                                    <span className="text-[0.8em] text-zinc-500">OpenAI API Key</span>
-                                                    <ApiKeyInput value={settings.apiKeys.openai} onChange={(val) => updateSettings({ apiKeys: { ...settings.apiKeys, openai: val } })} placeholder="sk-..." />
-                                                </div>
-                                            )}
-
-                                            {settings.provider === 'gemini' && (
-                                                <div className="space-y-1">
-                                                    <div className="flex justify-between">
-                                                        <span className="text-[0.8em] text-zinc-500">Gemini API Key</span>
-                                                        <span className="text-[0.7em] text-blue-400 cursor-pointer" title="可輸入多個 Key (用逗號隔開) 以自動輪替">多重 Key 支援 ⓘ</span>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-[0.85em] font-medium text-zinc-300">1. 即時錄音/聽寫設定</span>
+                                                        <span className="text-[0.65em] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30">必要</span>
                                                     </div>
-                                                    <ApiKeyInput value={settings.apiKeys.gemini} onChange={(val) => updateSettings({ apiKeys: { ...settings.apiKeys, gemini: val } })} placeholder="Key1, Key2, ..." />
-
-                                                    <div className="pt-2 space-y-2">
-                                                        <span className="text-[0.8em] text-zinc-500 block">Gemini 模型 (Live)</span>
-                                                        <select
-                                                            value={settings.geminiLiveModel || 'gemini-2.0-flash-exp'}
-                                                            onChange={(e) => updateSettings({ geminiLiveModel: e.target.value })}
-                                                            className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none"
-                                                        >
-                                                            <option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
-                                                            <option value="gemini-3-flash-preview">Gemini 3.0 Flash Preview</option>
-                                                            <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                                                            <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
-                                                            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
-                                                        </select>
-                                                    </div>
-
+                                                    <p className="text-[0.7em] text-zinc-500 mb-2">
+                                                        即時語音辨識必須使用 Google Gemini API (WebSocket)。
+                                                    </p>
+                                                    <span className="text-[0.8em] text-zinc-500">Google Gemini API Key</span>
+                                                    <ApiKeyInput
+                                                        value={settings.apiKeys.gemini}
+                                                        onChange={(val) => updateSettings({ apiKeys: { ...settings.apiKeys, gemini: val } })}
+                                                        placeholder="AI Studio Key (Required for Recording)"
+                                                    />
                                                     <div className="pt-2">
                                                         <button
                                                             onClick={async () => {
                                                                 if (!settings.apiKeys.gemini) {
-                                                                    setTestResult({ success: false, message: "請先輸入 API Key" });
+                                                                    setTestResult({ success: false, message: "請先輸入 Gemini API Key" });
                                                                     return;
                                                                 }
                                                                 setIsTesting(true);
                                                                 setTestResult(null);
-                                                                // Use the first key for testing
-                                                                const firstKey = settings.apiKeys.gemini.split(',')[0].trim();
-                                                                const result = await testGeminiConnection(firstKey, settings.geminiLiveModel || 'gemini-2.0-flash-exp');
+                                                                const result = await testGeminiConnection(settings.apiKeys.gemini, 'gemini-2.0-flash');
                                                                 setTestResult(result);
                                                                 setIsTesting(false);
                                                             }}
                                                             disabled={isTesting}
                                                             className={`w-full py-1.5 rounded text-xs border transition-all ${isTesting ? 'bg-zinc-800 text-zinc-500 border-zinc-800' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'}`}
                                                         >
-                                                            {isTesting ? "連線測試中..." : "測試連線 (Test Connection)"}
+                                                            {isTesting ? "Gemini 連線測試中..." : "測試錄音連線 (Test Gemini)"}
                                                         </button>
-                                                        {testResult && (
-                                                            <div className={`mt-2 text-[0.75em] px-2 py-1 rounded border ${testResult.success ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
-                                                                {testResult.message}
-                                                            </div>
-                                                        )}
                                                     </div>
                                                 </div>
-                                            )}
+                                            </div>
 
-                                            {/* UI Display Settings */}
-                                            <div className="space-y-2 pt-2 border-t border-zinc-800">
-                                                <span className="text-[0.8em] text-zinc-500 block">內文文字大小</span>
-                                                <div className="flex bg-zinc-900 rounded border border-zinc-700 p-1">
-                                                    {(['sm', 'md', 'lg', 'xl'] as const).map(size => (
-                                                        <button key={size} onClick={() => updateSettings({ contentFontSize: size })} className={`flex-1 py-1 text-xs rounded transition-colors ${settings.contentFontSize === size ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                                                            {size.toUpperCase()}
-                                                        </button>
-                                                    ))}
+                                            {/* --- Section 2: AI Assistant (Analysis) --- */}
+                                            <div className="space-y-4 pt-4 border-t border-zinc-800">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-[0.85em] font-medium text-zinc-300">2. AI 助理/分析設定</span>
+                                                    </div>
+                                                    <p className="text-[0.7em] text-zinc-500 mb-2">
+                                                        用於產生摘要、問答與建議。可選擇不同供應商。
+                                                    </p>
+
+                                                    <span className="text-[0.8em] text-zinc-500 block">AI 供應商</span>
+                                                    <select value={settings.provider} onChange={(e) => updateSettings({ provider: e.target.value as LLMProvider })} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none">
+                                                        <option value="gemini">Google Gemini (Default)</option>
+                                                        <option value="openrouter">OpenRouter (Multi-Model)</option>
+                                                        <option value="custom">Custom / Local LLM (OpenAI Format)</option>
+                                                    </select>
+                                                </div>
+
+                                                {settings.provider === 'custom' && (
+                                                    <div className="space-y-1 pl-2 border-l-2 border-zinc-800">
+                                                        <div className="space-y-2">
+                                                            <div>
+                                                                <span className="text-[0.8em] text-zinc-500 block">Base URL</span>
+                                                                <input
+                                                                    type="text"
+                                                                    value={settings.customBaseUrl}
+                                                                    onChange={(e) => updateSettings({ customBaseUrl: e.target.value })}
+                                                                    placeholder="e.g. http://localhost:11434/v1"
+                                                                    className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none placeholder-zinc-600"
+                                                                />
+                                                                <p className="text-[0.7em] text-zinc-500 mt-1">
+                                                                    * 適用於 Ollama, LM Studio, LocalAI 等。<br />
+                                                                    * Ollama 預設: <code>http://localhost:11434/v1</code>
+                                                                </p>
+                                                            </div>
+
+                                                            <div>
+                                                                <span className="text-[0.8em] text-zinc-500 block">API Key (Optional)</span>
+                                                                <ApiKeyInput
+                                                                    value={settings.customApiKey}
+                                                                    onChange={(val) => updateSettings({ customApiKey: val })}
+                                                                    placeholder="通常本地端不需 API Key"
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <span className="text-[0.8em] text-zinc-500 block">Model ID</span>
+                                                                <input
+                                                                    type="text"
+                                                                    value={settings.customModelId}
+                                                                    onChange={(e) => updateSettings({ customModelId: e.target.value })}
+                                                                    placeholder="e.g. llama3, mistral"
+                                                                    className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="pt-2">
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (!settings.customBaseUrl) {
+                                                                        setTestResult({ success: false, message: "請輸入 Base URL" });
+                                                                        return;
+                                                                    }
+                                                                    setIsTesting(true);
+                                                                    setTestResult(null);
+                                                                    const result = await testCustomConnection(
+                                                                        settings.customBaseUrl,
+                                                                        settings.customApiKey,
+                                                                        settings.customModelId || 'llama3'
+                                                                    );
+                                                                    setTestResult(result);
+                                                                    setIsTesting(false);
+                                                                }}
+                                                                disabled={isTesting}
+                                                                className={`w-full py-1.5 rounded text-xs border transition-all ${isTesting ? 'bg-zinc-800 text-zinc-500 border-zinc-800' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'}`}
+                                                            >
+                                                                {isTesting ? "連線測試中..." : "測試本地連線 (Test Connection)"}
+                                                            </button>
+                                                            {testResult && (
+                                                                <div className={`mt-2 text-[0.75em] px-2 py-1 rounded border ${testResult.success ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                                                    {testResult.message}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {settings.provider === 'openrouter' && (
+                                                    <div className="space-y-1 pl-2 border-l-2 border-zinc-800">
+                                                        <span className="text-[0.8em] text-zinc-500">OpenRouter API Key</span>
+                                                        <ApiKeyInput value={settings.apiKeys.openrouter} onChange={(val) => updateSettings({ apiKeys: { ...settings.apiKeys, openrouter: val } })} placeholder="sk-or-..." />
+
+                                                        <div className="pt-2 space-y-2">
+                                                            <span className="text-[0.8em] text-zinc-500 block">AI 模型選擇</span>
+
+                                                            {/* Quick Select Dropdown */}
+                                                            <select
+                                                                className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] mb-2 focus:border-primary outline-none"
+                                                                onChange={(e) => {
+                                                                    if (e.target.value) {
+                                                                        updateSettings({ openrouterModel: e.target.value });
+                                                                    }
+                                                                }}
+                                                                value={settings.openrouterModel}
+                                                            >
+                                                                <option value="" disabled>-- 快速選擇模型 --</option>
+                                                                <option value="google/gemini-2.0-flash-exp:free">Google Gemini 2.0 Flash (Free)</option>
+                                                                <option value="google/gemini-2.0-pro-exp-02-05:free">Google Gemini 2.0 Pro (Free)</option>
+                                                                <option value="google/gemini-2.0-flash-lite-preview-02-05:free">Google Gemini 2.0 Flash Lite (Free)</option>
+                                                                <option value="meta-llama/llama-3-8b-instruct:free">Meta Llama 3 8B (Free)</option>
+                                                                <option value="microsoft/phi-3-medium-128k-instruct:free">Microsoft Phi-3 (Free)</option>
+                                                                <option value="openai/gpt-4o">OpenAI GPT-4o</option>
+                                                                <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                                                                <option value="deepseek/deepseek-chat">DeepSeek Chat</option>
+                                                            </select>
+
+                                                            <span className="text-[0.7em] text-zinc-500 block mb-1">或是手動輸入 Model ID:</span>
+                                                            <input
+                                                                type="text"
+                                                                value={settings.openrouterModel || ''}
+                                                                onChange={(e) => updateSettings({ openrouterModel: e.target.value })}
+                                                                className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none placeholder-zinc-600"
+                                                                placeholder="例如: google/gemini-2.0-pro-exp-02-05:free"
+                                                            />
+                                                            <p className="text-[0.7em] text-zinc-500 mt-1">
+                                                                * 支援 OpenRouter 所有模型 ID。上方選單僅列出常用項目。
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="pt-2">
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (!settings.apiKeys.openrouter) {
+                                                                        setTestResult({ success: false, message: "請先輸入 API Key" });
+                                                                        return;
+                                                                    }
+                                                                    setIsTesting(true);
+                                                                    setTestResult(null);
+                                                                    const result = await testOpenRouterConnection(settings.apiKeys.openrouter, settings.openrouterModel || 'google/gemini-2.0-flash-exp:free');
+                                                                    setTestResult(result);
+                                                                    setIsTesting(false);
+                                                                }}
+                                                                disabled={isTesting}
+                                                                className={`w-full py-1.5 rounded text-xs border transition-all ${isTesting ? 'bg-zinc-800 text-zinc-500 border-zinc-800' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'}`}
+                                                            >
+                                                                {isTesting ? "連線測試中..." : "測試分析連線 (Test OpenRouter)"}
+                                                            </button>
+                                                            {testResult && (
+                                                                <div className={`mt-2 text-[0.75em] px-2 py-1 rounded border ${testResult.success ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                                                    {testResult.message}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {settings.provider === 'gemini' && (
+                                                    <div className="space-y-1 pl-2 border-l-2 border-zinc-800">
+                                                        <div className="flex justify-between">
+                                                            <span className="text-[0.8em] text-zinc-500">Gemini API Key</span>
+                                                            <span className="text-[0.7em] text-blue-400 cursor-pointer" title="可輸入多個 Key (用逗號隔開) 以自動輪替">多重 Key 支援 ⓘ</span>
+                                                        </div>
+                                                        <ApiKeyInput value={settings.apiKeys.gemini} onChange={(val) => updateSettings({ apiKeys: { ...settings.apiKeys, gemini: val } })} placeholder="Key1, Key2, ..." />
+
+                                                        <div className="pt-2 space-y-2">
+                                                            <span className="text-[0.8em] text-zinc-500 block">Gemini 模型 (Analysis)</span>
+                                                            <select
+                                                                value={settings.geminiAnalysisModel}
+                                                                onChange={(e) => updateSettings({ geminiAnalysisModel: e.target.value })}
+                                                                className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none"
+                                                            >
+                                                                <option value="gemini-2.5-flash">Gemini 2.5 Flash ⭐</option>
+                                                                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                                                                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                                                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                                                <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
+                                                            </select>
+                                                        </div>
+
+                                                        <div className="pt-2">
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (!settings.apiKeys.gemini) {
+                                                                        setTestResult({ success: false, message: "請先輸入 API Key" });
+                                                                        return;
+                                                                    }
+                                                                    setIsTesting(true);
+                                                                    setTestResult(null);
+                                                                    const firstKey = settings.apiKeys.gemini.split(',')[0].trim();
+                                                                    const result = await testGeminiConnection(firstKey, settings.geminiAnalysisModel || 'gemini-2.0-flash');
+                                                                    setTestResult(result);
+                                                                    setIsTesting(false);
+                                                                }}
+                                                                disabled={isTesting}
+                                                                className={`w-full py-1.5 rounded text-xs border transition-all ${isTesting ? 'bg-zinc-800 text-zinc-500 border-zinc-800' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'}`}
+                                                            >
+                                                                {isTesting ? "連線測試中..." : "測試連線 (Test Connection)"}
+                                                            </button>
+                                                            {testResult && (
+                                                                <div className={`mt-2 text-[0.75em] px-2 py-1 rounded border ${testResult.success ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                                                    {testResult.message}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div className="space-y-2 pt-2 border-t border-zinc-800">
+                                                    <div>Font Settings Placeholder</div>
                                                 </div>
                                             </div>
+
                                         </div>
                                     </div>
                                 )}
                             </div>
                         )}
                     </div>
-                </div>
 
-                <div className="p-3 border-t border-white/5 shrink-0">
-                    <button
-                        onClick={() => setIsManualOpen(true)}
-                        className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all text-sm group"
-                    >
-                        <svg className="w-5 h-5 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-                        <span>使用說明書 (User Manual)</span>
-                    </button>
-                </div>
+                    {/* Footer */}
+                    <div className="p-3 border-t border-white/5 shrink-0">
+                        <button
+                            onClick={() => setIsManualOpen(true)}
+                            className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all text-sm group"
+                        >
+                            <svg className="w-5 h-5 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                            <span>使用說明書 (User Manual)</span>
+                        </button>
+                    </div>
 
-                <div
-                    className="absolute right-0 top-0 bottom-0 w-1 bg-transparent hover:bg-primary/50 cursor-col-resize z-50 transition-colors"
-                    onMouseDown={startResizing}
-                />
-            </div>
+                    {/* Resizer */}
+                    <div
+                        className="absolute right-0 top-0 bottom-0 w-1 bg-transparent hover:bg-primary/50 cursor-col-resize z-50 transition-colors"
+                        onMouseDown={startResizing}
+                    />
+                </div >
+            </div >
+
             <UserManual isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
         </>
     );

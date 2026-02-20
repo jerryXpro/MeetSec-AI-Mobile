@@ -167,7 +167,7 @@ export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await serviceRef.current?.connect({
       apiKey: settings.apiKeys.gemini,
       appName: settings.appName,
-      model: settings.geminiLiveModel || 'gemini-2.0-flash-exp',
+      model: settings.geminiLiveModel || 'gemini-2.5-flash-native-audio-preview-12-2025',
       voiceName: settings.voiceName,
       systemInstruction: `你是 ${settings.appName} 專業會議助手。`,
       previousContext: aggregatedContext,

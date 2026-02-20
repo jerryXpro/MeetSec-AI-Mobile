@@ -456,7 +456,7 @@ const Transcript: React.FC = () => {
         <div
             ref={containerRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto p-4 pb-32 md:pb-40 space-y-4 relative custom-scrollbar h-full"
+            className="flex-1 overflow-y-auto p-4 pb-56 md:pb-48 space-y-4 relative custom-scrollbar h-full"
         >
             {messages.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-full text-zinc-500 opacity-50">

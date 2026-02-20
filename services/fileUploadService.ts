@@ -22,6 +22,12 @@ export const transcribeAudioFile = async (
     return await transcribeWithOpenAI(file, settings);
   }
 
+  if (settings.provider === 'custom') {
+    // Current Local LLM implementations (Ollama) often don't support /v1/audio/transcriptions
+    // We can either fallback to Gemini or throw an error asking user to use Cloud for transcription.
+    throw new Error("本地端模型 (Local LLM) 目前僅支援「會議分析」與「問答」，不支援語音轉錄。\n請切換回 Gemini 或 OpenAI 進行錄音轉錄。");
+  }
+
   throw new Error(`未知的供應商 (Unknown Provider): ${settings.provider}`);
 };
 
@@ -133,12 +139,12 @@ const transcribeWithGemini = async (file: File, settings: AppSettings): Promise<
   // If we are here, all keys failed on Primary Model.
   // Fallback: Try Stable Model (gemini-1.5-flash) with all keys
   // Only if the primary wasn't already 1.5-flash
-  if (primaryModel !== 'gemini-1.5-flash') {
-    console.warn("All keys failed on primary model. Attempting fallback to gemini-1.5-flash...");
+  if (primaryModel !== 'gemini-2.0-flash-lite-preview-02-05') {
+    console.warn("All keys failed on primary model. Attempting fallback to gemini-2.0-flash-lite-preview-02-05...");
 
     for (const key of keys) {
       try {
-        return await executeTranscribe(key, 'gemini-1.5-flash');
+        return await executeTranscribe(key, 'gemini-2.0-flash-lite-preview-02-05');
       } catch (err: any) {
         lastError = err;
         if (err.message === 'QUOTA_EXCEEDED') continue;

@@ -121,12 +121,8 @@ export class GeminiLiveService {
 
       this.ai = new GoogleGenAI({ apiKey: options.apiKey });
 
-      // Reuse existing AudioContext if available (crucial for retries outside user gesture)
-      if (!this.audioContext || this.audioContext.state === 'closed') {
-        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      } else if (this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
-      }
+      // Use system default sample rate (usually 44.1k or 48k) for better recording quality
+      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
 
       const audioConstraints = {
         echoCancellation: true,
@@ -170,7 +166,6 @@ export class GeminiLiveService {
           const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
           if (options.onSessionEnd) {
             options.onSessionEnd(blob);
-            options.onStateChange(ConnectionState.DISCONNECTED); // Ensure state update on Stop
           }
         };
 
@@ -247,6 +242,7 @@ export class GeminiLiveService {
       const finalSystemInstruction = `${baseSystemPrompt}\n${contextPrompt}\n${languagePrompt}\n${options.systemInstruction || ''}`;
 
       const config = {
+        model: options.model,
         responseModalities: [Modality.AUDIO],
         speechConfig: {
           voiceConfig: { prebuiltVoiceConfig: { voiceName: options.voiceName } },
@@ -257,7 +253,7 @@ export class GeminiLiveService {
       };
 
       const sessionPromise = this.ai.live.connect({
-        model: options.model,
+        model: config.model,
         config: config,
         callbacks: {
           onopen: async () => {
@@ -279,9 +275,7 @@ export class GeminiLiveService {
           onmessage: async (message: LiveServerMessage) => {
             this.handleMessage(message, options);
           },
-          onclose: (e: CloseEvent) => {
-            // Log close event details for debugging
-            console.warn(`[GeminiLive] WebSocket closed. Code: ${e.code}, Reason: "${e.reason}", WasClean: ${e.wasClean}`);
+          onclose: () => {
             this.active = false;
             // Only reset retry count if the session lasted longer than 5 seconds (stable connection)
             if (Date.now() - this.connectionStartTime > 5000) {
@@ -296,10 +290,8 @@ export class GeminiLiveService {
             }
           },
           onerror: (err: any) => {
-            const errMsg = err?.message || err?.toString() || JSON.stringify(err) || 'Unknown WebSocket error';
-            console.error('[GeminiLive] WebSocket error:', errMsg, err);
             options.onStateChange(ConnectionState.ERROR);
-            options.onError(`WebSocket 錯誤: ${errMsg}`);
+            options.onError(err.message || "Unknown error");
             this.stop();
           }
         }
@@ -486,15 +478,30 @@ export class GeminiLiveService {
       this.currentOptions.onStateChange(ConnectionState.RECONNECTING);
 
       this.reconnectTimeoutId = setTimeout(async () => {
+        // Clean up previous AI/WebSocket resources but keep audio streams if possible?
+        // Simplest approach: full reconnect but reuse options
+        // To be safe: fully stop previous internals (except we don't want to kill the UI state) 
+        // Ideally we should keep the AudioContext alive but for stability let's restart fresh
+
+        // NOTE: We need to be careful not to kill the mediaStream if we want seamless resumption, 
+        // but 'stop()' kills tracks. Let's try to just re-call connect() which re-initializes.
+        // However, connect() creates NEW streams. 
+        // To avoid permission prompts, detailed implementation would be needed. 
+        // For now, let's allow full teardown and re-setup which is safer to clear bad states.
+
+        // We need to temporarily set isUserInitiatedStop to true so stop() doesn't trigger ANOTHER loop, 
+        // BUT we are already inside the "onclose" which triggered this.
+        // We just need to make sure 'stop()' cleans up.
+
+        // Partial cleanup without full reset might be better, but 'connect' allocates new everything.
         await this.stopInternalForRetry();
         if (this.currentOptions) {
           await this.connect(this.currentOptions);
         }
       }, delay);
     } else {
-      console.error('Max retries reached. Last model used:', this.currentOptions.model);
+      console.log("Max retries reached. Giving up.");
       this.currentOptions.onStateChange(ConnectionState.DISCONNECTED);
-      this.currentOptions.onError(`連線失敗（模型: ${this.currentOptions.model}）：已達最大重試次數。請確認 API Key 是否有效、模型名稱是否正確，并查看瀏覽器 F12 Console 的詳細錯誤。`);
       this.stop();
     }
   }
@@ -509,12 +516,11 @@ export class GeminiLiveService {
     if (this.mixer) this.mixer.cleanup();
     this.sourceNode?.disconnect();
     this.scriptProcessor?.disconnect();
-    // Do NOT close AudioContext here, as we need to reuse it in `connect` to avoid user-gesture requirement issues
-    // if (this.audioContext) await this.audioContext.close();
+    if (this.audioContext) await this.audioContext.close();
 
     this.mediaStream = null;
     this.systemStream = null;
-    // this.audioContext = null; // Keep it!
+    this.audioContext = null;
     // Keep chunks? Maybe. But new session might send new history context if configured.
     // For now, clear buffer to avoid sync issues.
     this.userAudioChunks = [];
@@ -525,19 +531,21 @@ export class GeminiLiveService {
 export const testGeminiConnection = async (apiKey: string, modelName: string): Promise<{ success: boolean; message: string }> => {
   try {
     const ai = new GoogleGenAI({ apiKey });
-    // Use the v1+ API: ai.models.generateContent (replaces deprecated ai.getGenerativeModel)
+    // Attempt to make a minimal call to verify credentials and model availability
     try {
+      // Simply instantiating shouldn't fail, we need to make a request.
+      // We use generateContent with a very small prompt.
       await ai.models.generateContent({
         model: modelName,
-        contents: [{ role: 'user', parts: [{ text: 'Test' }] }],
+        contents: { role: 'user', parts: [{ text: "Test" }] }
       });
       return { success: true, message: "連線成功！(Service Operational)" };
     } catch (e: any) {
       console.warn("Connection test warning:", e);
-      if (e.message?.includes("API key") || e.message?.includes("API_KEY")) {
+      if (e.message?.includes("API key")) {
         return { success: false, message: "API Key 無效或過期" };
       }
-      if (e.message?.includes("not found") || e.message?.includes("INVALID_ARGUMENT")) {
+      if (e.message?.includes("not found") || e.message?.includes("model")) {
         return { success: false, message: `模型 ${modelName} 不存在或無法存取` };
       }
       return { success: false, message: e.message || "連線失敗" };

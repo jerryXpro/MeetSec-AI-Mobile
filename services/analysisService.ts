@@ -227,20 +227,24 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function callLLM(prompt: string, settings: AppSettings): Promise<string> {
 
-    // --- OpenAI Handling (Kept simple) ---
-    if (settings.provider === 'openai') {
-        if (!settings.apiKeys.openai) throw new Error("請先在設定中輸入 OpenAI API Key。");
+    // --- OpenRouter Handling ---
+    if (settings.provider === 'openrouter') {
+        if (!settings.apiKeys.openrouter) throw new Error("請先在設定中輸入 OpenRouter API Key。");
 
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        const model = settings.openrouterModel || 'google/gemini-2.0-flash-exp:free';
+
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${settings.apiKeys.openai}`
+                "Authorization": `Bearer ${settings.apiKeys.openrouter}`,
+                "HTTP-Referer": "https://github.com/jerryXpro/MeetSec-AI", // Required by OpenRouter
+                "X-Title": settings.appName // Required by OpenRouter
             },
             body: JSON.stringify({
-                model: "gpt-4o",
+                model: model,
                 messages: [
-                    { role: "system", content: `You are ${settings.appName}, a helpful meeting assistant.` },
+                    { role: "system", content: `You are ${settings.appName}, a helpful meeting assistant. Answer in Traditional Chinese (Taiwan).` },
                     { role: "user", content: prompt }
                 ]
             })
@@ -248,11 +252,41 @@ async function callLLM(prompt: string, settings: AppSettings): Promise<string> {
 
         if (!response.ok) {
             const err = await response.json();
-            throw new Error(`OpenAI Error: ${err.error?.message || response.statusText}`);
+            throw new Error(`OpenRouter Error: ${err.error?.message || response.statusText}`);
         }
 
         const data = await response.json();
-        return data.choices?.[0]?.message?.content || "OpenAI 未回傳任何內容。";
+        return data.choices?.[0]?.message?.content || "OpenRouter 未回傳任何內容。";
+    }
+
+    // --- Custom / Local LLM Handling ---
+    if (settings.provider === 'custom') {
+        const baseUrl = settings.customBaseUrl?.replace(/\/+$/, '') || 'http://localhost:11434/v1';
+        const apiKey = settings.customApiKey || 'sk-no-key-required';
+        const model = settings.customModelId || 'llama3';
+
+        const response = await fetch(`${baseUrl}/chat/completions`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: [
+                    { role: "system", content: `You are ${settings.appName}, a helpful meeting assistant. Answer in Traditional Chinese (Taiwan).` },
+                    { role: "user", content: prompt }
+                ]
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(`Custom LLM Error (${response.status}): ${err.error?.message || response.statusText}`);
+        }
+
+        const data = await response.json();
+        return data.choices?.[0]?.message?.content || "Local LLM 未回傳任何內容。";
     }
 
     // --- Gemini Handling with Rotation & Fallback ---
@@ -309,3 +343,73 @@ async function callLLM(prompt: string, settings: AppSettings): Promise<string> {
 
     throw new Error(`供應商 ${settings.provider} 尚未實作。`);
 }
+
+export const testOpenRouterConnection = async (apiKey: string, model: string): Promise<{ success: boolean; message: string }> => {
+    try {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`,
+                "HTTP-Referer": "https://github.com/jerryXpro/MeetSec-AI",
+                "X-Title": "MeetSec-AI Connect Test"
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: [
+                    { role: "user", content: "Hi" }
+                ],
+                max_tokens: 5
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            const msg = err.error?.message || response.statusText;
+            console.error("OpenRouter Test Error:", err);
+            return { success: false, message: `連線失敗 (${response.status}): ${msg}` };
+        }
+
+        return { success: true, message: "OpenRouter 連線成功！" };
+    } catch (e: any) {
+        return { success: false, message: `連線錯誤: ${e.message}` };
+    }
+};
+
+export const testCustomConnection = async (baseUrl: string, apiKey: string, model: string): Promise<{ success: boolean; message: string }> => {
+    try {
+        const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
+        // Try simple chat completion
+        const response = await fetch(`${cleanBaseUrl}/chat/completions`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey || 'sk-no-key-required'}`
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: [
+                    { role: "user", content: "Hi" }
+                ],
+                max_tokens: 5
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            const msg = err.error?.message || response.statusText;
+            console.error("Custom LLM Test Error:", err);
+            return {
+                success: false,
+                message: `連線失敗 (${response.status}): ${msg} (請確認 Ollama/LocalAI 已啟動並允許外部連線)`
+            };
+        }
+
+        return { success: true, message: "本地端/自訂模型 連線成功！" };
+    } catch (e: any) {
+        return {
+            success: false,
+            message: `連線錯誤: ${e.message}. 請確認 URL 是否正確 (例如 http://localhost:11434/v1)`
+        };
+    }
+};
