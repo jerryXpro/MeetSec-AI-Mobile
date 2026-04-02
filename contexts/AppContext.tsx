@@ -24,8 +24,8 @@ interface AppContextType {
   isSidebarOpen: boolean;
   setSidebarOpen: (isOpen: boolean) => void;
 
-  viewMode: 'meeting' | 'recording' | 'translator';
-  setViewMode: (mode: 'meeting' | 'recording' | 'translator') => void;
+  viewMode: 'meeting' | 'recording' | 'translator' | 'chat';
+  setViewMode: (mode: 'meeting' | 'recording' | 'translator' | 'chat') => void;
 }
 
 
@@ -189,7 +189,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('home');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
-  const [viewMode, setViewMode] = useState<'meeting' | 'recording' | 'translator'>('meeting');
+  const [viewMode, setViewMode] = useState<'meeting' | 'recording' | 'translator' | 'chat'>('meeting');
 
   useEffect(() => {
     localStorage.setItem('proactor_settings', JSON.stringify(settings));

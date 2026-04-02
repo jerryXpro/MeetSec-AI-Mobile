@@ -373,10 +373,25 @@ const Sidebar: React.FC = () => {
                                     {viewMode === 'translator' && <div className="ml-auto w-2 h-2 rounded-full bg-emerald-500 shadow-md"></div>}
                                 </button>
 
+                                <button
+                                    onClick={() => setViewMode('chat')}
+                                    className={`group w-full flex items-center gap-4 p-4 rounded-2xl transition-all border ${viewMode === 'chat' ? 'bg-purple-600/10 border-purple-500/50 relative overflow-hidden' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                                >
+                                    {viewMode === 'chat' && <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 to-transparent pointer-events-none" />}
+                                    <div className={`p-3 rounded-xl ${viewMode === 'chat' ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30' : 'bg-zinc-800 text-zinc-400 group-hover:text-white'}`}>
+                                        <span className="text-xl block w-6 h-6 flex items-center justify-center">🏠</span>
+                                    </div>
+                                    <div className="flex flex-col items-start gap-1">
+                                        <span className={`text-base font-bold ${viewMode === 'chat' ? 'text-white' : 'text-zinc-300'}`}>小家人</span>
+                                        <span className="text-xs text-zinc-500 text-left">你的 AI 夥伴，隨時陪你聊</span>
+                                    </div>
+                                    {viewMode === 'chat' && <div className="ml-auto w-2 h-2 rounded-full bg-purple-500 shadow-md"></div>}
+                                </button>
+
                                 <div className="pt-2 px-2">
                                     <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 text-center">
                                         <p className="text-xs text-indigo-300 mb-2">💡 小提示</p>
-                                        <p className="text-xs text-zinc-400">目前為 <span className="text-white font-mono">v2.1 (Mobile Premium)</span> 版本。點擊上方的「功能設定」可管理知識庫與系統參數。</p>
+                                        <p className="text-xs text-zinc-400">目前為 <span className="text-white font-mono">v2.2 (Mobile Premium)</span> 版本。點擊上方的「功能設定」可管理知識庫與系統參數。</p>
                                     </div>
                                 </div>
                             </div>
