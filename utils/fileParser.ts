@@ -2,8 +2,8 @@
 import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
 import mammoth from 'mammoth';
-// @ts-ignore
 import * as XLSX from 'xlsx';
+import WordExtractor from 'word-extractor';
 
 // Initialize PDF Worker
 // Use cdnjs for the worker as it is generally more stable for worker loading than esm.sh in some contexts
@@ -33,12 +33,15 @@ export const parseFileToText = async (
         if (fileName.endsWith('.pdf')) {
             return await parsePDF(file, onProgress);
         } else if (fileName.endsWith('.docx')) {
-            if (onProgress) onProgress(50); // Mammoth doesn't support granular progress
+            if (onProgress) onProgress(50);
             const text = await parseDocx(file);
             if (onProgress) onProgress(100);
             return text;
         } else if (fileName.endsWith('.doc')) {
-            throw new Error(`不支援舊版 Word 格式 (.doc)。請先轉存為 .docx 格式，或轉存為 PDF 後再上傳。`);
+            if (onProgress) onProgress(50);
+            const text = await parseOldDoc(file);
+            if (onProgress) onProgress(100);
+            return text;
         } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv')) {
             return await parseExcel(file, onProgress);
         } else if (fileName.endsWith('.txt') || fileName.endsWith('.md')) {
@@ -105,6 +108,26 @@ const parseDocx = async (file: File): Promise<string> => {
     const arrayBuffer = await file.arrayBuffer();
     const result = await mammoth.extractRawText({ arrayBuffer });
     return result.value; // The raw text
+};
+
+const parseOldDoc = async (file: File): Promise<string> => {
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        
+        // Ensure Buffer is available
+        if (typeof window !== 'undefined' && !window.Buffer) {
+            window.Buffer = require('buffer/').Buffer;
+        }
+
+        const extractor = new WordExtractor();
+        // Extract raw buffer
+        const buffer = Buffer.from(arrayBuffer);
+        const extracted = await extractor.extract(buffer);
+        return extracted.getBody();
+    } catch (err: any) {
+        console.error("Old doc parse error:", err);
+        throw new Error("無法解析舊版 .doc 文件。如果持續失敗，請轉存為 .docx 格式 (" + err.message + ")");
+    }
 };
 
 const parseExcel = async (file: File, onProgress?: (p: number) => void): Promise<string> => {
