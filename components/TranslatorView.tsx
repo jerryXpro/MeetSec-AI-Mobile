@@ -367,7 +367,7 @@ ${text}`;
             </div>
 
             {/* Header */}
-            <div className="shrink-0 px-4 sm:px-6 py-3 border-b border-zinc-800/50 z-10 bg-background/80 backdrop-blur-sm">
+            <div className="shrink-0 px-4 sm:px-6 py-3 border-b border-zinc-800/50 z-10 bg-background/80 backdrop-blur-sm pl-14 md:pl-4">
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
                         <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
@@ -597,7 +597,7 @@ ${text}`;
             )}
 
             {/* Input Bar */}
-            <form onSubmit={handleSubmit} className="shrink-0 px-4 sm:px-6 py-3 border-t border-zinc-800/50 z-10 bg-background/80 backdrop-blur-sm">
+            <form onSubmit={handleSubmit} className="shrink-0 px-4 sm:px-6 py-3 pb-8 md:py-3 border-t border-zinc-800/50 z-10 bg-background/80 backdrop-blur-sm">
                 {/* Continuous mode status bar */}
                 {continuousMode && (
                     <div className="mb-2 flex items-center justify-between bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-1.5">

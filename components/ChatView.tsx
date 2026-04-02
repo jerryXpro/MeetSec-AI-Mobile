@@ -236,7 +236,7 @@ const ChatView: React.FC = () => {
             </div>
 
             {/* Header */}
-            <div className="shrink-0 px-4 sm:px-6 py-3 border-b border-zinc-800/50 z-10 bg-background/80 backdrop-blur-sm">
+            <div className="shrink-0 px-4 sm:px-6 py-3 border-b border-zinc-800/50 z-10 bg-background/80 backdrop-blur-sm pl-14 md:pl-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30 text-lg">
@@ -415,7 +415,7 @@ const ChatView: React.FC = () => {
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSubmit} className="shrink-0 px-4 sm:px-6 py-3 border-t border-zinc-800/50 z-10 bg-background/80 backdrop-blur-sm">
+            <form onSubmit={handleSubmit} className="shrink-0 px-4 sm:px-6 py-3 pb-8 md:py-3 border-t border-zinc-800/50 z-10 bg-background/80 backdrop-blur-sm">
                 <div className="relative flex items-center">
                     <input
                         ref={inputRef}

@@ -283,11 +283,11 @@ const RecorderTab: React.FC = () => {
 const RecorderView: React.FC = () => {
     return (
         <div className="flex flex-col h-full bg-background">
-            <div className="flex flex-col items-center pt-8 pb-4 bg-zinc-950/50 border-b border-zinc-800/50">
+            <div className="flex flex-col items-center pt-8 pb-4 bg-zinc-950/50 border-b border-zinc-800/50 pl-14 md:pl-0">
                 <h2 className="text-2xl font-bold text-zinc-100 mb-2 tracking-tight">獨立錄音室</h2>
                 <p className="text-zinc-500 text-xs">高品質音訊錄製 • 無 AI 介入 • 本地儲存</p>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto pb-6 md:pb-0">
                 <RecorderTab />
             </div>
         </div>
