@@ -228,13 +228,17 @@ const UserManual: React.FC<UserManualProps> = ({ isOpen, onClose }) => {
                             spellCheck={false}
                         />
                     ) : (
-                        <div className="h-full overflow-y-auto p-8 custom-scrollbar">
+                        <div className="h-full overflow-y-auto p-10 custom-scrollbar">
                             <div
                                 className="prose prose-invert prose-lg max-w-none 
-                                prose-headings:text-zinc-100 prose-p:text-zinc-300 prose-li:text-zinc-300 
-                                prose-strong:text-primary prose-a:text-blue-400 
-                                prose-img:rounded-xl prose-img:shadow-lg prose-img:border prose-img:border-zinc-800
-                                prose-blockquote:border-l-primary prose-blockquote:bg-zinc-800/30 prose-blockquote:p-4 prose-blockquote:rounded-r-lg"
+                                prose-headings:text-zinc-100 prose-headings:tracking-tight prose-headings:mt-12 prose-headings:mb-6
+                                prose-p:text-zinc-300 prose-p:leading-loose prose-p:mb-6 prose-p:tracking-wide
+                                prose-li:text-zinc-300 prose-li:leading-loose prose-li:mb-4 prose-li:tracking-wide
+                                prose-strong:text-primary prose-strong:font-bold prose-a:text-blue-400 
+                                prose-hr:border-zinc-800 prose-hr:my-10
+                                prose-img:rounded-xl prose-img:shadow-lg prose-img:border prose-img:border-zinc-800 prose-img:my-8
+                                prose-blockquote:border-l-primary prose-blockquote:bg-zinc-800/30 prose-blockquote:p-6 prose-blockquote:rounded-r-lg prose-blockquote:my-8
+                                prose-blockquote:text-zinc-300 prose-blockquote:not-italic prose-blockquote:leading-loose"
                                 dangerouslySetInnerHTML={{ __html: htmlContent }}
                             />
                         </div>
