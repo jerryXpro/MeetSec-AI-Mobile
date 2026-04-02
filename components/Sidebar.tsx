@@ -794,11 +794,9 @@ const Sidebar: React.FC = () => {
                                                                 onChange={(e) => updateSettings({ geminiAnalysisModel: e.target.value })}
                                                                 className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none"
                                                             >
-                                                                <option value="gemini-3.1-pro">Gemini 3.1 Pro ⭐</option>
-                                                                <option value="gemini-3.1-flash">Gemini 3.1 Flash</option>
+                                                                <option value="gemini-2.5-pro">Gemini 2.5 Pro ⭐</option>
                                                                 <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                                                                 <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
-                                                                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                                                             </select>
                                                         </div>
 
