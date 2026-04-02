@@ -47,7 +47,7 @@ const TranslatorView: React.FC = () => {
     const [isSpeaking, setIsSpeaking] = useState(false);
 
     const recognitionRef = useRef<any>(null);
-    const historyEndRef = useRef<HTMLDivElement>(null);
+    const historyContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const continuousModeRef = useRef(continuousMode);
     const isTranslatingRef = useRef(false);
@@ -58,7 +58,9 @@ const TranslatorView: React.FC = () => {
     useEffect(() => { ttsModeRef.current = ttsMode; }, [ttsMode]);
 
     useEffect(() => {
-        historyEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (historyContainerRef.current) {
+            historyContainerRef.current.scrollTop = historyContainerRef.current.scrollHeight;
+        }
     }, [history]);
 
     // Cleanup speech on unmount
@@ -415,7 +417,7 @@ ${text}`;
             </div>
 
             {/* Translation History */}
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-3 custom-scrollbar z-10">
+            <div ref={historyContainerRef} className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-3 custom-scrollbar z-10">
                 {history.length === 0 && !isTranslating ? (
                     <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4">
                         <svg className="w-16 h-16 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
@@ -467,7 +469,7 @@ ${text}`;
                                 </div>
                             </div>
                         )}
-                        <div ref={historyEndRef} />
+
                     </>
                 )}
             </div>

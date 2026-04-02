@@ -50,7 +50,7 @@ const AppLayout: React.FC = () => {
 
       {/* 2. Main Stage (Live) */}
       {/* On Mobile: Hidden if Assistant is OPEN */}
-      <main className={`flex-1 flex flex-col relative min-w-0 bg-background ${isMobileAssistantOpen ? 'hidden md:flex' : 'flex'}`}>
+      <main className={`flex-1 flex flex-col relative min-w-0 overflow-hidden bg-background ${isMobileAssistantOpen ? 'hidden md:flex' : 'flex'}`}>
 
         {/* Background Ambient */}
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 opacity-40">
