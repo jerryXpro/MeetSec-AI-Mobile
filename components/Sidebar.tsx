@@ -402,11 +402,11 @@ const Sidebar: React.FC = () => {
                                                 ))}
                                                 {safeTemporaryFiles.length === 0 && (
                                                     <div className="text-[0.8em] text-zinc-500 italic py-3 text-center border border-dashed border-zinc-700 rounded bg-zinc-800/20">
-                                                        上傳 PDF, Word, Excel, Markdown 或文字檔
+                                                        上傳 PDF, Word(.docx), Excel, Markdown 或文字檔
                                                     </div>
                                                 )}
                                             </div>
-                                            <input type="file" multiple ref={contextFileInputRef} onChange={handleContextFileChange} className="hidden" accept=".txt,.json,.md,.csv,.pdf,.doc,.docx,.xls,.xlsx" />
+                                            <input type="file" multiple ref={contextFileInputRef} onChange={handleContextFileChange} className="hidden" accept=".txt,.json,.md,.csv,.pdf,.docx,.xls,.xlsx" />
                                             <div className="grid grid-cols-2 gap-2 mt-2">
                                                 <button onClick={() => contextFileInputRef.current?.click()} disabled={isParsing} className="py-2 border border-zinc-700 rounded text-[0.8em] text-zinc-300 hover:text-white hover:border-zinc-500 hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                                                     {isParsing ? "正在解析中..." : "📥 批次上傳"}

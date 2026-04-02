@@ -32,11 +32,13 @@ export const parseFileToText = async (
     try {
         if (fileName.endsWith('.pdf')) {
             return await parsePDF(file, onProgress);
-        } else if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
+        } else if (fileName.endsWith('.docx')) {
             if (onProgress) onProgress(50); // Mammoth doesn't support granular progress
             const text = await parseDocx(file);
             if (onProgress) onProgress(100);
             return text;
+        } else if (fileName.endsWith('.doc')) {
+            throw new Error(`不支援舊版 Word 格式 (.doc)。請先轉存為 .docx 格式，或轉存為 PDF 後再上傳。`);
         } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv')) {
             return await parseExcel(file, onProgress);
         } else if (fileName.endsWith('.txt') || fileName.endsWith('.md')) {
