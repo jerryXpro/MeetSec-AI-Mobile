@@ -561,31 +561,7 @@ const Sidebar: React.FC = () => {
                                                     </div>
                                                 </div>
 
-                                                {/* Colors */}
-                                                <div className="space-y-1">
-                                                    <span className="text-[0.7em] text-zinc-500 block mb-2">自訂顏色 (Custom Colors)</span>
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        {(['text', 'primary', 'secondary', 'background'] as const).map(colorKey => (
-                                                            <div key={colorKey} className="flex flex-col gap-1">
-                                                                <span className="text-[0.65em] text-zinc-500 capitalize">{colorKey === 'text' ? '文字色 (Text)' : colorKey === 'primary' ? '主重點 (Primary)' : colorKey === 'secondary' ? '次重點 (Secondary)' : '背景色 (BG)'}</span>
-                                                                <div className="flex items-center gap-2 bg-zinc-900 rounded p-1.5 border border-zinc-700">
-                                                                    <input 
-                                                                        type="color" 
-                                                                        value={settings.customColors[colorKey] || '#ffffff'} 
-                                                                        onChange={(e) => {
-                                                                            updateSettings({ 
-                                                                                themeMode: 'custom', 
-                                                                                customColors: { ...settings.customColors, [colorKey]: e.target.value } 
-                                                                            });
-                                                                        }} 
-                                                                        className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0" 
-                                                                    />
-                                                                    <span className="text-[0.7rem] font-mono text-zinc-400 truncate">{settings.customColors[colorKey] || '#FFFFFF'}</span>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
+
                                             </div>
                                         </div>
 
