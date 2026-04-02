@@ -31,7 +31,8 @@ export const generateMeetingMinutes = async (
     meetingDate: string,
     meetingDuration: string,
     customInstruction?: string,
-    contextFiles?: ContextFile[]
+    contextFiles?: ContextFile[],
+    templatePrompt?: string
 ): Promise<string> => {
     const transcript = formatTranscript(messages, settings.appName);
     const filesContent = formatContextFiles(contextFiles);
@@ -52,7 +53,8 @@ export const generateMeetingMinutes = async (
         meetingDuration,
         customInstruction,
         filesContent,
-        hasFiles
+        hasFiles,
+        templatePrompt
     );
 
     return await callLLM(systemPrompt, settings);
@@ -90,7 +92,8 @@ const buildSummaryPrompt = (
     meetingDuration: string,
     customInstruction: string | undefined,
     filesContent: string,
-    hasFiles: boolean
+    hasFiles: boolean,
+    templatePrompt?: string
 ): string => {
     const basePrompt = `
 # 角色設定
@@ -162,6 +165,18 @@ const buildSummaryPrompt = (
 # 預設參考格式 (僅在使用者無特定格式要求時參考)
 ${basePrompt}
       `;
+    }
+
+    // If a report template is provided, prepend it as a format override
+    if (templatePrompt && templatePrompt.trim()) {
+        finalPrompt = `
+# 報告範本格式指令 (最高優先級)
+請嚴格按照以下範本格式生成報告：
+${templatePrompt}
+
+---
+${finalPrompt}
+        `;
     }
 
     const hasTranscript = transcript && transcript.trim().length > 0;

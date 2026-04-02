@@ -174,7 +174,7 @@ const AssistantPanel: React.FC = () => {
             const endTime = messages.length > 0 ? messages[messages.length - 1].timestamp : Date.now();
 
             const durationMs = endTime - startTime;
-            const minutes = Math.floor(durationMs / 60000);
+            const minutes = Math.round(durationMs / 60000);
             const hours = Math.floor(minutes / 60);
             const remainingMinutes = minutes % 60;
 
@@ -197,6 +197,10 @@ const AssistantPanel: React.FC = () => {
 
             const finalTitle = meetingTitle.trim() || "未命名會議";
 
+            // Get active template prompt
+            const activeTemplate = (settings.reportTemplates || []).find(t => t.id === settings.activeTemplateId);
+            const templatePrompt = activeTemplate?.prompt;
+
             const result = await generateMeetingMinutes(
                 messages,
                 settings,
@@ -204,7 +208,8 @@ const AssistantPanel: React.FC = () => {
                 dateStr,
                 durationStr,
                 customInstruction,
-                temporaryFiles
+                temporaryFiles,
+                templatePrompt
             );
             setAnalysisResult(result);
         } catch (err: any) {
@@ -380,7 +385,21 @@ const AssistantPanel: React.FC = () => {
                                                 )}
                                             </div>
                                             <input type="file" multiple ref={contextFileInputRef} onChange={handleContextFileChange} className="hidden" accept=".txt,.json,.md,.csv,.pdf,.doc,.docx,.xls,.xlsx" />
-                                            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-zinc-800/50 mt-4">
+                                            <div className="grid grid-cols-1 gap-3 pt-2 border-t border-zinc-800/50 mt-4">
+                                                {/* Template Selector */}
+                                                <div className="flex items-center gap-2">
+                                                    <svg className="w-4 h-4 text-zinc-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                    <select
+                                                        value={settings.activeTemplateId}
+                                                        onChange={(e) => updateSettings({ activeTemplateId: e.target.value })}
+                                                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-[0.8em] text-zinc-300 focus:outline-none focus:border-blue-500 transition-colors"
+                                                    >
+                                                        {(settings.reportTemplates || []).map(t => (
+                                                            <option key={t.id} value={t.id}>{t.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3">
                                                 <button onClick={() => contextFileInputRef.current?.click()} disabled={isParsing} className="py-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-500 rounded-xl text-[0.85em] font-medium text-zinc-300 hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                                                     {isParsing ? (
                                                         <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -401,6 +420,7 @@ const AssistantPanel: React.FC = () => {
                                                     )}
                                                     直接生成
                                                 </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

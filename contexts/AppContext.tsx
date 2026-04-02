@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { AppSettings, MeetingSession, KnowledgeProfile, ProfileDocument, ThemePreset, PresetCommand } from '../types';
+import { AppSettings, MeetingSession, KnowledgeProfile, ProfileDocument, ThemePreset, PresetCommand, ReportTemplate } from '../types';
 
 export type SidebarTab = 'profiles' | 'settings';
 
@@ -24,8 +24,8 @@ interface AppContextType {
   isSidebarOpen: boolean;
   setSidebarOpen: (isOpen: boolean) => void;
 
-  viewMode: 'meeting' | 'recording';
-  setViewMode: (mode: 'meeting' | 'recording') => void;
+  viewMode: 'meeting' | 'recording' | 'translator';
+  setViewMode: (mode: 'meeting' | 'recording' | 'translator') => void;
 }
 
 
@@ -67,6 +67,12 @@ const defaultPresets: PresetCommand[] = [
   { id: '5', name: '🗣️ 發言者觀點分析', prompt: '請分析每位發言者的主要立場與觀點差異。' },
 ];
 
+const defaultReportTemplates: ReportTemplate[] = [
+  { id: 'rt1', name: '📝 標準會議記錄', prompt: '請整理一份標準的會議記錄，格式包含：\n1. 會議摘要（200字以內）\n2. 重點討論事項\n3. 決議事項\n4. 待辦清單（含負責人與期限）', isDefault: true },
+  { id: 'rt2', name: '📊 簡報摘要', prompt: '請將內容整理成簡潔的簡報摘要格式：\n- 每頁一個核心重點\n- 使用條列式重點（Bullet Points）\n- 搭配關鍵數據與結論\n- 最後附上「下一步行動」建議', isDefault: true },
+  { id: 'rt3', name: '🔬 技術評審報告', prompt: '請以技術評審的角度整理報告：\n1. 技術方案概述\n2. 風險評估與潛在問題\n3. 效能 / 安全性分析\n4. 改善建議\n5. 結論與建議決策', isDefault: true },
+];
+
 const defaultSettings: AppSettings = {
   appName: 'MeetSec-AI',
   userName: 'User',
@@ -89,6 +95,9 @@ const defaultSettings: AppSettings = {
 
   presetCommands: defaultPresets,
 
+  reportTemplates: defaultReportTemplates,
+  activeTemplateId: 'rt1',
+
   uiFontSize: 'md',
   contentFontSize: 'md',
   navFontSize: 11,
@@ -103,6 +112,8 @@ const defaultSettings: AppSettings = {
 
   noiseThreshold: 0.002 // Default high sensitivity
 };
+
+
 
 // ... (lines 110-117 omitted)
 
@@ -178,7 +189,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('profiles');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
-  const [viewMode, setViewMode] = useState<'meeting' | 'recording'>('meeting');
+  const [viewMode, setViewMode] = useState<'meeting' | 'recording' | 'translator'>('meeting');
 
   useEffect(() => {
     localStorage.setItem('proactor_settings', JSON.stringify(settings));

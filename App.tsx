@@ -6,6 +6,7 @@ import Controls from './components/Controls';
 
 import AudioVisualizer from './components/AudioVisualizer';
 import RecorderView from './components/RecorderView';
+import TranslatorView from './components/TranslatorView';
 import Sidebar from './components/Sidebar';
 import AssistantPanel from './components/AssistantPanel';
 
@@ -84,6 +85,10 @@ const AppLayout: React.FC = () => {
           {viewMode === 'recording' ? (
             <div className="flex-1 relative flex flex-col min-h-0 bg-zinc-950 z-30">
               <RecorderView />
+            </div>
+          ) : viewMode === 'translator' ? (
+            <div className="flex-1 relative flex flex-col min-h-0 z-30">
+              <TranslatorView />
             </div>
           ) : (
             <>

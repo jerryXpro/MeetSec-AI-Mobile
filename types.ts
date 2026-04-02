@@ -37,6 +37,13 @@ export interface PresetCommand {
   prompt: string;
 }
 
+export interface ReportTemplate {
+  id: string;
+  name: string;
+  prompt: string;
+  isDefault?: boolean;
+}
+
 export interface AppSettings {
   appName: string;
   userName: string;
@@ -62,6 +69,10 @@ export interface AppSettings {
 
   // Custom Presets
   presetCommands: PresetCommand[];
+
+  // Report Templates
+  reportTemplates: ReportTemplate[];
+  activeTemplateId: string;
 
   // Behavior Settings
   aiInteractionMode: 'passive' | 'active';
