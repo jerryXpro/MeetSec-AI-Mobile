@@ -253,11 +253,6 @@ const AssistantPanel: React.FC = () => {
         e?.preventDefault();
         if (!chatInput.trim() || isChatting) return;
 
-        if (!hasContent) {
-            setError("請先開始會議、上傳音檔或補充資料以進行討論。");
-            return;
-        }
-
         const question = chatInput.trim();
         setChatInput('');
         setError(null);
@@ -589,9 +584,11 @@ const AssistantPanel: React.FC = () => {
                 {activeTab === 'chat' && (
                     <div className="absolute inset-0 flex flex-col p-4">
                         <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4 pr-1 custom-scrollbar">
-                            {!hasContent ? (
-                                <div className="text-center text-zinc-500 mt-10 text-[0.85em]">
-                                    <p>請先進行對話、上傳檔案或補充資料，<br />我才能回答相關問題。</p>
+                            {chatHistory.length === 0 && !isChatting ? (
+                                <div className="text-center text-zinc-500 mt-10 text-[0.85em] space-y-2">
+                                    <svg className="w-10 h-10 mx-auto text-zinc-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                    <p>您可以隨時輸入文字或語音與 AI 對話。</p>
+                                    <p className="text-zinc-600 text-xs">上傳檔案或啟動會議後，AI 將能使用更多背景資料回答。</p>
                                 </div>
                             ) : (
                                 <>
@@ -624,14 +621,14 @@ const AssistantPanel: React.FC = () => {
                                     type="text"
                                     value={chatInput}
                                     onChange={(e) => setChatInput(e.target.value)}
-                                    placeholder={isListening ? "正在聆聽中..." : (hasContent ? "詢問關於這場會議或檔案的問題..." : "等待內容...")}
-                                    disabled={!hasContent || isChatting}
+                                    placeholder={isListening ? "正在聆聽中..." : "輸入文字或點擊麥克風語音對話..."}
+                                    disabled={isChatting}
                                     className={`w-full bg-zinc-900 border ${isListening ? 'border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'border-zinc-700'} rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-all shadow-sm disabled:opacity-50`}
                                 />
                                 <button
                                     type="button"
                                     onClick={toggleListening}
-                                    disabled={!hasContent || isChatting}
+                                    disabled={isChatting}
                                     className={`absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all ${isListening
                                         ? 'text-red-500 hover:bg-red-500/10 animate-pulse'
                                         : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
