@@ -227,7 +227,7 @@ const Sidebar: React.FC = () => {
     const applyPreset = (key: ThemePreset) => {
         updateSettings({
             themePreset: key,
-            themeMode: 'custom',
+            themeMode: 'preset',
             customColors: { ...THEME_PRESETS[key].colors }
         });
     };
