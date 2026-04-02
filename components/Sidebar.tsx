@@ -489,21 +489,21 @@ const Sidebar: React.FC = () => {
                                                     className={`p-2 rounded-lg border flex flex-col items-center justify-center gap-1 transition-all ${settings.themeMode === 'preset' && settings.themePreset === 'dark' ? 'border-blue-500 bg-blue-500/10 text-white' : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:bg-zinc-800'}`}
                                                 >
                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-                                                    <span className="text-xs">一般暗色 (Dark)</span>
+                                                    <span className="text-xs">經典暗色 (Dark)</span>
                                                 </button>
                                                 <button 
                                                     onClick={() => { updateSettings({ themeMode: 'preset', themePreset: 'black' }); }} 
-                                                    className={`p-2 rounded-lg border flex flex-col items-center justify-center gap-1 transition-all ${settings.themeMode === 'preset' && settings.themePreset === 'black' ? 'border-purple-500 bg-purple-500/10 text-white' : 'border-black bg-black text-zinc-400 hover:border-zinc-800'}`}
+                                                    className={`p-2 rounded-lg border flex flex-col items-center justify-center gap-1 transition-all ${settings.themeMode === 'preset' && settings.themePreset === 'black' ? 'border-zinc-500 bg-black text-white shadow-inner' : 'border-black bg-black text-zinc-500 hover:border-zinc-800'}`}
                                                 >
                                                     <div className="w-5 h-5 rounded-full bg-black border border-zinc-700"></div>
-                                                    <span className="text-xs">純粹黑 (Pure Black)</span>
+                                                    <span className="text-xs">曜石純黑 (Black)</span>
                                                 </button>
                                                 <button 
-                                                    onClick={() => { updateSettings({ themeMode: 'preset', themePreset: 'light' }); }} 
-                                                    className={`p-2 rounded-lg border flex flex-col items-center justify-center gap-1 transition-all ${settings.themeMode === 'preset' && settings.themePreset === 'light' ? 'border-amber-500 bg-amber-500/10 text-amber-500' : 'border-zinc-800 bg-zinc-100 text-zinc-600 hover:bg-white'}`}
+                                                    onClick={() => { updateSettings({ themeMode: 'preset', themePreset: 'ocean' }); }} 
+                                                    className={`p-2 rounded-lg border flex flex-col items-center justify-center gap-1 transition-all ${settings.themeMode === 'preset' && settings.themePreset === 'ocean' ? 'border-teal-500 bg-teal-500/10 text-teal-400 shadow-inner' : 'border-zinc-800 bg-[#0B132B] text-zinc-500 hover:border-zinc-600 hover:text-zinc-300'}`}
                                                 >
-                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                                                    <span className="text-xs">明亮模式 (Light)</span>
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                                                    <span className="text-xs">深海湛藍 (Ocean)</span>
                                                 </button>
                                             </div>
 

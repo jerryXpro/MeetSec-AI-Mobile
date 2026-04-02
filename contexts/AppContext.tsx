@@ -42,20 +42,20 @@ const hexToRgb = (hex: string): string => {
 // Theme Presets Definition
 export const THEME_PRESETS: Record<ThemePreset, { name: string, colors: AppSettings['customColors'] }> = {
   dark: {
-    name: '深色模式 (Dark)',
-    colors: { background: '#09090b', surface: '#18181b', primary: '#3b82f6', secondary: '#a855f7', text: '#e4e4e7', icon: '#a1a1aa' }
+    name: '經典暗色 (Classic Dark)',
+    colors: { background: '#0D1117', surface: '#161B22', primary: '#2F81F7', secondary: '#A371F7', text: '#E6EDF3', icon: '#848D97' }
   },
   black: {
-    name: '純粹黑 (Pure Black)',
-    colors: { background: '#000000', surface: '#0a0a0a', primary: '#ec4899', secondary: '#d946ef', text: '#f0f9ff', icon: '#e879f9' }
+    name: '曜石純黑 (Obsidian Black)',
+    colors: { background: '#000000', surface: '#0A0A0A', primary: '#EDEDED', secondary: '#5E5E5E', text: '#FFFFFF', icon: '#888888' }
   },
   ocean: {
-    name: '深海藍調 (Ocean)',
-    colors: { background: '#020617', surface: '#0f172a', primary: '#06b6d4', secondary: '#3b82f6', text: '#e2e8f0', icon: '#94a3b8' }
+    name: '深海湛藍 (Midnight Blue)',
+    colors: { background: '#0B132B', surface: '#132143', primary: '#41EAD4', secondary: '#F72585', text: '#F0F4F8', icon: '#5C7A99' }
   },
   light: {
-    name: '系統明亮 (Light)',
-    colors: { background: '#f8fafc', surface: '#ffffff', primary: '#2563eb', secondary: '#7c3aed', text: '#0f172a', icon: '#64748b' }
+    name: '霧白輕盈 (Mist Light)', // Soft elegant bright background
+    colors: { background: '#F8F9FA', surface: '#FFFFFF', primary: '#18181B', secondary: '#71717A', text: '#27272A', icon: '#A1A1AA' }
   }
 };
 
