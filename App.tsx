@@ -66,7 +66,7 @@ const AppLayout: React.FC = () => {
           </div>
           <div className="text-xs text-zinc-600 font-mono flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-zinc-700"></span>
-            LIVE-2.5-FLASH-NATIVE-AUDIO
+            {settings.geminiLiveModel.toUpperCase().replace('GEMINI-', '').replace('-PREVIEW', '')}
           </div>
         </header>
 

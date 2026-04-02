@@ -156,6 +156,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         'gemini-2.5-flash-native-audio-preview-12-2025',
         'gemini-2.5-flash-native-audio-preview-09-2025',
       ];
+      if (merged.geminiLiveModel === 'gemini-2.5-flash-native-audio-preview-12-2025') {
+        merged.geminiLiveModel = 'gemini-3.1-flash-live-preview';
+      }
       if (!merged.geminiLiveModel || !validLiveModels.includes(merged.geminiLiveModel)) {
         console.warn(`[AppContext] Invalid Live model "${merged.geminiLiveModel}", resetting to default.`);
         merged.geminiLiveModel = 'gemini-3.1-flash-live-preview';
