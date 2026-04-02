@@ -141,17 +141,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Auto-fix deprecated models
       if (
         merged.geminiTranscriptionModel.includes('gemini-1.5') || 
-        merged.geminiTranscriptionModel === 'gemini-2.0-flash-lite-preview-02-05' ||
+        merged.geminiTranscriptionModel.includes('gemini-2.0') ||
         merged.geminiTranscriptionModel === 'gemini-2.5-flash-preview-04-17'
       ) {
         merged.geminiTranscriptionModel = 'gemini-3.1-flash';
       }
       if (merged.geminiAnalysisModel.includes('gemini-1.5') ||
-        merged.geminiAnalysisModel === 'gemini-2.0-flash-lite-preview-02-05' ||
-        merged.geminiAnalysisModel === 'gemini-2.0-pro-exp-02-05' ||
+        merged.geminiAnalysisModel.includes('gemini-2.0') ||
         merged.geminiAnalysisModel === 'gemini-2.5-flash-preview-04-17' ||
-        merged.geminiAnalysisModel === 'gemini-2.5-pro-preview-03-25' ||
-        merged.geminiAnalysisModel === 'gemini-2.0-pro-exp') {
+        merged.geminiAnalysisModel === 'gemini-2.5-pro-preview-03-25') {
         merged.geminiAnalysisModel = 'gemini-2.5-flash';
       }
       // Live models - whitelist only known valid Live API models
