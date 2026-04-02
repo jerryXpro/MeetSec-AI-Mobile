@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { GoogleGenAI } from '@google/genai';
 
@@ -39,16 +39,90 @@ const ChatView: React.FC = () => {
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
+    // TTS state
+    const [ttsEnabled, setTtsEnabled] = useState(false);
+    const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+    const [selectedVoiceName, setSelectedVoiceName] = useState('');
+    const [isSpeaking, setIsSpeaking] = useState(false);
+    const [showVoicePanel, setShowVoicePanel] = useState(false);
+    const ttsEnabledRef = useRef(false);
+
+    useEffect(() => { ttsEnabledRef.current = ttsEnabled; }, [ttsEnabled]);
+
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
     }, [messages]);
 
-    // Focus input on mount
+    useEffect(() => { inputRef.current?.focus(); }, []);
+
+    // Load voices
     useEffect(() => {
-        inputRef.current?.focus();
+        const loadVoices = () => {
+            const voices = window.speechSynthesis?.getVoices() || [];
+            setAvailableVoices(voices);
+        };
+        loadVoices();
+        window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
+        return () => {
+            window.speechSynthesis?.removeEventListener('voiceschanged', loadVoices);
+            window.speechSynthesis?.cancel();
+        };
     }, []);
+
+    // Get Chinese-preferred voices sorted by quality
+    const getChineseVoices = useCallback(() => {
+        return availableVoices
+            .filter(v => v.lang.startsWith('zh'))
+            .sort((a, b) => {
+                if (!a.localService && b.localService) return -1;
+                if (a.localService && !b.localService) return 1;
+                const aG = a.name.toLowerCase().includes('google');
+                const bG = b.name.toLowerCase().includes('google');
+                if (aG && !bG) return -1;
+                if (!aG && bG) return 1;
+                return a.name.localeCompare(b.name);
+            });
+    }, [availableVoices]);
+
+    // Speak text
+    const speakText = useCallback((text: string) => {
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+
+        // Clean text: remove emojis/markdown for cleaner speech
+        const cleanText = text.replace(/[*#_~`>]/g, '').replace(/\p{Emoji_Presentation}/gu, '').trim();
+        if (!cleanText) return;
+
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = 'zh-TW';
+        utterance.rate = 0.95;
+        utterance.pitch = 1.05;
+
+        const voices = window.speechSynthesis.getVoices();
+        // Use selected voice or auto-pick best Chinese voice
+        let voice = selectedVoiceName ? voices.find(v => v.name === selectedVoiceName) : null;
+        if (!voice) {
+            const zhVoices = voices.filter(v => v.lang.startsWith('zh')).sort((a, b) => {
+                if (!a.localService && b.localService) return -1;
+                if (a.localService && !b.localService) return 1;
+                return 0;
+            });
+            voice = zhVoices[0] || null;
+        }
+        if (voice) utterance.voice = voice;
+
+        utterance.onstart = () => setIsSpeaking(true);
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        window.speechSynthesis.speak(utterance);
+    }, [selectedVoiceName]);
+
+    const stopSpeaking = () => {
+        window.speechSynthesis?.cancel();
+        setIsSpeaking(false);
+    };
 
     const sendMessage = async (text: string) => {
         if (!text.trim() || isThinking) return;
@@ -74,7 +148,6 @@ const ChatView: React.FC = () => {
         setInput('');
         setIsThinking(true);
 
-        // Build conversation history for context
         const history = [...messages, userMsg].slice(-20).map(m => ({
             role: m.role === 'user' ? 'user' as const : 'model' as const,
             parts: [{ text: m.text }]
@@ -110,6 +183,11 @@ const ChatView: React.FC = () => {
             timestamp: Date.now()
         }]);
         setIsThinking(false);
+
+        // Auto TTS for AI reply
+        if (ttsEnabledRef.current && reply) {
+            setTimeout(() => speakText(reply), 200);
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -120,6 +198,9 @@ const ChatView: React.FC = () => {
     const formatTime = (ts: number) => {
         return new Date(ts).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
     };
+
+    const chineseVoices = getChineseVoices();
+    const allVoices = availableVoices.sort((a, b) => a.name.localeCompare(b.name));
 
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden relative">
@@ -140,20 +221,98 @@ const ChatView: React.FC = () => {
                             <h2 className="text-base font-bold text-zinc-100">小家人</h2>
                             <p className="text-[0.65rem] text-zinc-500 flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span>
-                                隨時都在你身邊 💜
+                                {isSpeaking ? '🔊 說話中...' : '隨時都在你身邊 💜'}
                             </p>
                         </div>
                     </div>
-                    {messages.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                        {/* TTS Toggle */}
                         <button
-                            onClick={() => setMessages([])}
-                            className="px-2.5 py-1.5 text-[0.65rem] bg-zinc-800 text-zinc-400 rounded-lg hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
-                            title="開啟新對話"
+                            onClick={() => {
+                                if (ttsEnabled) { stopSpeaking(); }
+                                setTtsEnabled(!ttsEnabled);
+                                if (!ttsEnabled) setShowVoicePanel(true);
+                            }}
+                            className={`p-2 rounded-lg transition-all ${ttsEnabled ? 'bg-purple-500/20 text-purple-400' : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'}`}
+                            title={ttsEnabled ? '關閉語音' : '開啟語音'}
                         >
-                            🔄 新對話
+                            {ttsEnabled ? (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+                            ) : (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>
+                            )}
                         </button>
-                    )}
+                        {/* Voice Settings */}
+                        {ttsEnabled && (
+                            <button
+                                onClick={() => setShowVoicePanel(!showVoicePanel)}
+                                className={`p-2 rounded-lg transition-all ${showVoicePanel ? 'bg-purple-500/20 text-purple-400' : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'}`}
+                                title="語音設定"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            </button>
+                        )}
+                        {/* Stop Speaking */}
+                        {isSpeaking && (
+                            <button
+                                onClick={stopSpeaking}
+                                className="p-2 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 transition-all animate-pulse"
+                                title="停止朗讀"
+                            >
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" /></svg>
+                            </button>
+                        )}
+                        {/* New Chat */}
+                        {messages.length > 0 && (
+                            <button
+                                onClick={() => { setMessages([]); stopSpeaking(); }}
+                                className="px-2.5 py-1.5 text-[0.65rem] bg-zinc-800 text-zinc-400 rounded-lg hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
+                                title="開啟新對話"
+                            >
+                                🔄 新對話
+                            </button>
+                        )}
+                    </div>
                 </div>
+
+                {/* Voice Selection Panel */}
+                {showVoicePanel && ttsEnabled && (
+                    <div className="mt-3 p-3 bg-zinc-900/80 border border-zinc-700/50 rounded-xl space-y-2 animate-fade-in-up">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs text-zinc-400">🎙️ 語音音色</span>
+                            <button
+                                onClick={() => { speakText('你好呀～我是小家人，很高興認識你！'); }}
+                                className="text-[0.6rem] text-purple-400 hover:text-purple-300 transition-colors px-2 py-0.5 rounded bg-purple-500/10"
+                            >
+                                ▶ 試聽
+                            </button>
+                        </div>
+                        <select
+                            value={selectedVoiceName}
+                            onChange={(e) => setSelectedVoiceName(e.target.value)}
+                            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-purple-500"
+                        >
+                            <option value="">自動選擇 (最佳中文語音)</option>
+                            {chineseVoices.length > 0 && (
+                                <optgroup label="🇹🇼 中文語音 (推薦)">
+                                    {chineseVoices.map(v => (
+                                        <option key={v.name} value={v.name}>
+                                            {v.name} {!v.localService ? '☁️' : '📱'}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            )}
+                            <optgroup label="🌍 所有語音">
+                                {allVoices.map(v => (
+                                    <option key={v.name} value={v.name}>
+                                        {v.name} [{v.lang}] {!v.localService ? '☁️' : '📱'}
+                                    </option>
+                                ))}
+                            </optgroup>
+                        </select>
+                        <p className="text-[0.55rem] text-zinc-600">☁️ 雲端語音品質較佳 · 📱 本地語音離線可用</p>
+                    </div>
+                )}
             </div>
 
             {/* Chat Messages */}
@@ -167,7 +326,6 @@ const ChatView: React.FC = () => {
                             <p className="text-zinc-300 text-sm font-medium mb-1">嗨～我是你的小家人 💜</p>
                             <p className="text-zinc-500 text-xs">有什麼想聊的嗎？不管開心還是難過，我都在</p>
                         </div>
-                        {/* Quick starters */}
                         <div className="flex flex-wrap justify-center gap-2 mt-2 max-w-sm">
                             {[
                                 '今天過得好嗎？',
@@ -200,9 +358,20 @@ const ChatView: React.FC = () => {
                                         : 'bg-zinc-800/80 border border-zinc-700/50 text-zinc-200 rounded-bl-md'
                                 }`}>
                                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                                    <p className={`text-[0.55rem] mt-1 ${msg.role === 'user' ? 'text-purple-400/60 text-right' : 'text-zinc-600'}`}>
-                                        {formatTime(msg.timestamp)}
-                                    </p>
+                                    <div className={`flex items-center gap-2 mt-1 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                                        <span className={`text-[0.55rem] ${msg.role === 'user' ? 'text-purple-400/60' : 'text-zinc-600'}`}>
+                                            {formatTime(msg.timestamp)}
+                                        </span>
+                                        {msg.role === 'ai' && (
+                                            <button
+                                                onClick={() => speakText(msg.text)}
+                                                className="text-zinc-600 hover:text-purple-400 transition-colors p-0.5"
+                                                title="朗讀此則回覆"
+                                            >
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))}
