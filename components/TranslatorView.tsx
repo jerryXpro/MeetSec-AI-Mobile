@@ -212,8 +212,9 @@ ${text}`;
 
         recognition.onstart = () => setIsListening(true);
         recognition.onend = () => {
-            // If continuous mode is ON, automatically restart after processing
-            if (continuousModeRef.current && !isTranslatingRef.current) {
+            // In continuous mode, ALWAYS restart regardless of translation state
+            // Translation is async and doesn't block the microphone
+            if (continuousModeRef.current) {
                 setTimeout(() => {
                     try {
                         recognition.start();
@@ -221,7 +222,7 @@ ${text}`;
                         setIsListening(false);
                     }
                 }, 300);
-            } else if (!continuousModeRef.current) {
+            } else {
                 setIsListening(false);
             }
         };
