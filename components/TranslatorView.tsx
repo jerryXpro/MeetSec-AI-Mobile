@@ -339,6 +339,17 @@ ${text}`;
 
     const clearHistory = () => setHistory([]);
 
+    // Stop everything: TTS, listening, continuous mode, translation state
+    const handleStopAll = () => {
+        window.speechSynthesis?.cancel();
+        setIsSpeaking(false);
+        recognitionRef.current?.stop();
+        setIsListening(false);
+        setContinuousMode(false);
+        isTranslatingRef.current = false;
+        setIsTranslating(false);
+    };
+
     // Manual TTS replay for individual entry
     const replayTTS = (entry: TranslationEntry, mode: 'source' | 'target') => {
         window.speechSynthesis?.cancel();
@@ -370,6 +381,17 @@ ${text}`;
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5">
+                        {/* Stop Button - visible when active */}
+                        {(isTranslating || isListening || isSpeaking || continuousMode) && (
+                            <button
+                                onClick={handleStopAll}
+                                className="px-3 py-1.5 text-[0.65rem] bg-red-600/20 text-red-300 rounded-lg hover:bg-red-600/40 transition-all border border-red-500/30 flex items-center gap-1.5 animate-pulse"
+                                title="停止所有翻譯活動"
+                            >
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" /></svg>
+                                停止
+                            </button>
+                        )}
                         {/* Settings Toggle */}
                         <button
                             onClick={() => setShowSettings(!showSettings)}
