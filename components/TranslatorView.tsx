@@ -45,6 +45,8 @@ const TranslatorView: React.FC = () => {
     // Feature 2: TTS
     const [ttsMode, setTtsMode] = useState<TTSMode>('off');
     const [isSpeaking, setIsSpeaking] = useState(false);
+    const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+    const [voicePrefs, setVoicePrefs] = useState<Record<string, string>>({});  // langCode -> voiceName
 
     const recognitionRef = useRef<any>(null);
     const historyContainerRef = useRef<HTMLDivElement>(null);
@@ -71,6 +73,35 @@ const TranslatorView: React.FC = () => {
         };
     }, []);
 
+    // Load available voices
+    useEffect(() => {
+        const loadVoices = () => {
+            const voices = window.speechSynthesis?.getVoices() || [];
+            setAvailableVoices(voices);
+        };
+        loadVoices();
+        window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
+        return () => window.speechSynthesis?.removeEventListener('voiceschanged', loadVoices);
+    }, []);
+
+    // Get voices for a specific language, sorted with cloud voices first
+    const getVoicesForLang = useCallback((langCode: string) => {
+        const langPrefix = langCode.split('-')[0];
+        return availableVoices
+            .filter(v => v.lang === langCode || v.lang.startsWith(langPrefix))
+            .sort((a, b) => {
+                // Cloud/remote voices first (usually higher quality)
+                if (!a.localService && b.localService) return -1;
+                if (a.localService && !b.localService) return 1;
+                // Google voices preferred
+                const aGoogle = a.name.toLowerCase().includes('google');
+                const bGoogle = b.name.toLowerCase().includes('google');
+                if (aGoogle && !bGoogle) return -1;
+                if (!aGoogle && bGoogle) return 1;
+                return a.name.localeCompare(b.name);
+            });
+    }, [availableVoices]);
+
     const getLanguageName = (code: string) => LANGUAGES.find(l => l.code === code)?.name || code;
 
     const swapLanguages = () => {
@@ -84,17 +115,39 @@ const TranslatorView: React.FC = () => {
             if (!window.speechSynthesis) { resolve(); return; }
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = langCode;
-            utterance.rate = 0.95;
-            // Try to find a matching voice
+            utterance.rate = 0.92;
+            utterance.pitch = 1.0;
+
+            // Smart voice selection
             const voices = window.speechSynthesis.getVoices();
-            const match = voices.find(v => v.lang === langCode) ||
-                          voices.find(v => v.lang.startsWith(langCode.split('-')[0]));
-            if (match) utterance.voice = match;
+            const langPrefix = langCode.split('-')[0];
+
+            // 1. Check if user has a preferred voice for this language
+            const prefName = voicePrefs[langCode];
+            let selectedVoice = prefName ? voices.find(v => v.name === prefName) : null;
+
+            if (!selectedVoice) {
+                // 2. Find matching voices, prefer cloud/Google voices
+                const candidates = voices
+                    .filter(v => v.lang === langCode || v.lang.startsWith(langPrefix))
+                    .sort((a, b) => {
+                        if (!a.localService && b.localService) return -1;
+                        if (a.localService && !b.localService) return 1;
+                        const aG = a.name.toLowerCase().includes('google');
+                        const bG = b.name.toLowerCase().includes('google');
+                        if (aG && !bG) return -1;
+                        if (!aG && bG) return 1;
+                        return 0;
+                    });
+                selectedVoice = candidates[0] || null;
+            }
+
+            if (selectedVoice) utterance.voice = selectedVoice;
             utterance.onend = () => resolve();
             utterance.onerror = () => resolve();
             window.speechSynthesis.speak(utterance);
         });
-    }, []);
+    }, [voicePrefs]);
 
     const handleTTS = useCallback(async (entry: TranslationEntry, mode: TTSMode) => {
         if (mode === 'off') return;
@@ -378,9 +431,36 @@ ${text}`;
                             </div>
                         </div>
                         {ttsMode !== 'off' && (
+                            <>
                             <p className="text-[0.6rem] text-zinc-600 pl-1">
                                 {ttsMode === 'target' ? '📌 翻譯完成後自動朗讀目標語言' : '📌 翻譯完成後先朗讀原文，再朗讀譯文'}
                             </p>
+                            {/* Voice Picker per language */}
+                            <div className="space-y-2 mt-1">
+                                {[sourceLang, targetLang].filter((v, i, a) => a.indexOf(v) === i).map(langCode => {
+                                    const langVoices = getVoicesForLang(langCode);
+                                    const langName = getLanguageName(langCode);
+                                    if (langVoices.length === 0) return null;
+                                    return (
+                                        <div key={langCode} className="flex items-center gap-2">
+                                            <span className="text-[0.6rem] text-zinc-500 min-w-[60px] shrink-0">{langName}</span>
+                                            <select
+                                                value={voicePrefs[langCode] || ''}
+                                                onChange={(e) => setVoicePrefs(prev => ({ ...prev, [langCode]: e.target.value }))}
+                                                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-[0.6rem] text-zinc-300 focus:outline-none focus:border-emerald-500 min-w-0"
+                                            >
+                                                <option value="">自動選擇 (最佳品質)</option>
+                                                {langVoices.map(v => (
+                                                    <option key={v.name} value={v.name}>
+                                                        {v.name} {!v.localService ? '☁️' : '📱'}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            </>
                         )}
                     </div>
                 )}
