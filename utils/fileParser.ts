@@ -126,8 +126,35 @@ const parseOldDoc = async (file: File): Promise<string> => {
         const extracted = await extractor.extract(buffer);
         return extracted.getBody();
     } catch (err: any) {
-        console.error("Old doc parse error:", err);
-        throw new Error("無法解析舊版 .doc 文件。如果持續失敗，請轉存為 .docx 格式 (" + err.message + ")");
+        console.error("Old doc parse error (OLE):", err);
+        
+        // Fallback for .doc files that are actually HTML, RTF or Plain Text disguised as .doc
+        try {
+            const reader = new FileReader();
+            const textContent = await new Promise<string>((resolve, reject) => {
+                reader.onload = (e) => resolve(e.target?.result as string);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+            
+            // If it looks like HTML, extract text
+            if (textContent.includes('<html') || textContent.includes('<body') || textContent.includes('<!DOCTYPE') || textContent.includes('<table')) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(textContent, 'text/html');
+                return doc.body.textContent || textContent;
+            }
+            
+            // Try to extract readable strings if it's RTF or binary garbage
+            // Only keep Chinese characters and basic ASCII, ignore standard binary garbage
+            const cleanText = textContent.replace(/[\x00-\x09\x0B-\x1F\x7F-\xFF]/g, '').trim();
+            if (cleanText.length > 50) {
+                 return cleanText;
+            }
+        } catch (fallbackErr) {
+            console.error("Fallback text parsing failed:", fallbackErr);
+        }
+
+        throw new Error("無法解析舊版 .doc 文件。這可能不是標準的 Word 格式(可能是損毀或特規產出)，請您手動開啟後「另存新檔為 .docx 或 .pdf」再上傳 (" + err.message + ")");
     }
 };
 
