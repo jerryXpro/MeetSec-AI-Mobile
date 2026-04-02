@@ -138,9 +138,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!merged.assistantWidth) merged.assistantWidth = 384;
       if (!merged.presetCommands) merged.presetCommands = defaultPresets; // Init presets if missing
 
-      // Auto-fix deprecated models
-      if (merged.geminiTranscriptionModel.includes('gemini-1.5')) {
-        merged.geminiTranscriptionModel = 'gemini-2.0-flash';
+    // Auto-fix deprecated models
+      if (
+        merged.geminiTranscriptionModel.includes('gemini-1.5') || 
+        merged.geminiTranscriptionModel === 'gemini-2.0-flash-lite-preview-02-05' ||
+        merged.geminiTranscriptionModel === 'gemini-2.5-flash-preview-04-17'
+      ) {
+        merged.geminiTranscriptionModel = 'gemini-3.1-flash';
       }
       if (merged.geminiAnalysisModel.includes('gemini-1.5') ||
         merged.geminiAnalysisModel === 'gemini-2.0-flash-lite-preview-02-05' ||

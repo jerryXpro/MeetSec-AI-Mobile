@@ -137,14 +137,14 @@ const transcribeWithGemini = async (file: File, settings: AppSettings): Promise<
   }
 
   // If we are here, all keys failed on Primary Model.
-  // Fallback: Try Stable Model (gemini-1.5-flash) with all keys
-  // Only if the primary wasn't already 1.5-flash
-  if (primaryModel !== 'gemini-2.0-flash-lite-preview-02-05') {
-    console.warn("All keys failed on primary model. Attempting fallback to gemini-2.0-flash-lite-preview-02-05...");
+  // Fallback: Try Stable Model (gemini-2.5-flash) with all keys
+  // Only if the primary wasn't already 2.5-flash
+  if (primaryModel !== 'gemini-2.5-flash') {
+    console.warn("All keys failed on primary model. Attempting fallback to gemini-2.5-flash...");
 
     for (const key of keys) {
       try {
-        return await executeTranscribe(key, 'gemini-2.0-flash-lite-preview-02-05');
+        return await executeTranscribe(key, 'gemini-2.5-flash');
       } catch (err: any) {
         lastError = err;
         if (err.message === 'QUOTA_EXCEEDED') continue;
