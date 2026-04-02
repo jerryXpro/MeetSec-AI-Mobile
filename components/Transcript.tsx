@@ -423,7 +423,25 @@ const MessageBubble: React.FC<{ msg: Message }> = ({ msg }) => {
                         </div>
                     ) : (
                         <div className="whitespace-pre-wrap leading-relaxed break-words">
-                            {msg.text}
+                            {msg.role === 'system' && msg.text.includes('正在上傳並分析音檔') ? (
+                                <div className="flex flex-col items-center gap-3 py-4">
+                                    <div className="flex items-center gap-2 text-blue-400 font-medium">
+                                        <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span>{msg.text}</span>
+                                    </div>
+                                    <div className="w-48 md:w-64 h-1.5 bg-zinc-700/50 rounded-full overflow-hidden relative">
+                                        <div className="absolute top-0 left-0 h-full bg-blue-500 rounded-full w-full animate-pulse opacity-80"></div>
+                                    </div>
+                                    <span className="text-[10.5px] text-zinc-500 tracking-wide mt-1">
+                                        音檔上傳、轉錄與分段識別中，處理時間視檔案大小而定，請稍候...
+                                    </span>
+                                </div>
+                            ) : (
+                                msg.text
+                            )}
                         </div>
                     )}
                 </div>
