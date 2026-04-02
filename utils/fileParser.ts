@@ -4,6 +4,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import WordExtractor from 'word-extractor';
+import { Buffer as NodeBuffer } from 'buffer';
 
 // Initialize PDF Worker
 // Use cdnjs for the worker as it is generally more stable for worker loading than esm.sh in some contexts
@@ -114,14 +115,14 @@ const parseOldDoc = async (file: File): Promise<string> => {
     try {
         const arrayBuffer = await file.arrayBuffer();
         
-        // Ensure Buffer is available
+        // Ensure Buffer is available globally
         if (typeof window !== 'undefined' && !window.Buffer) {
-            window.Buffer = require('buffer/').Buffer;
+            window.Buffer = NodeBuffer;
         }
 
         const extractor = new WordExtractor();
         // Extract raw buffer
-        const buffer = Buffer.from(arrayBuffer);
+        const buffer = NodeBuffer.from(arrayBuffer);
         const extracted = await extractor.extract(buffer);
         return extracted.getBody();
     } catch (err: any) {

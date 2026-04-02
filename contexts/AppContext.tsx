@@ -142,12 +142,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (
         merged.geminiTranscriptionModel.includes('gemini-1.5') || 
         merged.geminiTranscriptionModel.includes('gemini-2.0') ||
+        merged.geminiTranscriptionModel.includes('gemini-3.') ||
         merged.geminiTranscriptionModel === 'gemini-2.5-flash-preview-04-17'
       ) {
         merged.geminiTranscriptionModel = 'gemini-2.5-flash';
       }
       if (merged.geminiAnalysisModel.includes('gemini-1.5') ||
         merged.geminiAnalysisModel.includes('gemini-2.0') ||
+        merged.geminiAnalysisModel.includes('gemini-3.') ||
         merged.geminiAnalysisModel === 'gemini-2.5-flash-preview-04-17' ||
         merged.geminiAnalysisModel === 'gemini-2.5-pro-preview-03-25') {
         merged.geminiAnalysisModel = 'gemini-2.5-flash';
