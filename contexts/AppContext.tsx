@@ -41,29 +41,21 @@ const hexToRgb = (hex: string): string => {
 
 // Theme Presets Definition
 export const THEME_PRESETS: Record<ThemePreset, { name: string, colors: AppSettings['customColors'] }> = {
-  professional: {
-    name: '專業深色 (Professional)',
+  dark: {
+    name: '深色模式 (Dark)',
     colors: { background: '#09090b', surface: '#18181b', primary: '#3b82f6', secondary: '#a855f7', text: '#e4e4e7', icon: '#a1a1aa' }
   },
-  light: {
-    name: '明亮簡潔 (Light)',
-    colors: { background: '#f8fafc', surface: '#ffffff', primary: '#2563eb', secondary: '#7c3aed', text: '#0f172a', icon: '#64748b' }
+  black: {
+    name: '純粹黑 (Pure Black)',
+    colors: { background: '#000000', surface: '#0a0a0a', primary: '#ec4899', secondary: '#d946ef', text: '#f0f9ff', icon: '#e879f9' }
   },
   ocean: {
     name: '深海藍調 (Ocean)',
     colors: { background: '#020617', surface: '#0f172a', primary: '#06b6d4', secondary: '#3b82f6', text: '#e2e8f0', icon: '#94a3b8' }
   },
-  forest: {
-    name: '靜謐森林 (Forest)',
-    colors: { background: '#022c22', surface: '#064e3b', primary: '#10b981', secondary: '#34d399', text: '#ecfdf5', icon: '#6ee7b7' }
-  },
-  cyber: {
-    name: '賽博龐克 (Cyber)',
-    colors: { background: '#000000', surface: '#111111', primary: '#ec4899', secondary: '#d946ef', text: '#f0f9ff', icon: '#e879f9' }
-  },
-  sunset: {
-    name: '日落暖陽 (Sunset)',
-    colors: { background: '#2a1205', surface: '#431407', primary: '#f97316', secondary: '#e11d48', text: '#fff1f2', icon: '#fda4af' }
+  light: {
+    name: '系統明亮 (Light)',
+    colors: { background: '#f8fafc', surface: '#ffffff', primary: '#2563eb', secondary: '#7c3aed', text: '#0f172a', icon: '#64748b' }
   }
 };
 
@@ -214,7 +206,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (mode === 'system') {
         const isDark = mediaQuery.matches;
-        colors = isDark ? THEME_PRESETS.professional.colors : THEME_PRESETS.light.colors;
+        colors = isDark ? THEME_PRESETS.dark.colors : THEME_PRESETS.light.colors;
         root.classList.toggle('dark', isDark);
       } else if (mode === 'preset') {
         colors = THEME_PRESETS[settings.themePreset].colors;

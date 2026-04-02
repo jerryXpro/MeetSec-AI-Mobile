@@ -29,7 +29,7 @@ export interface MeetingSession {
 
 export type LLMProvider = 'gemini' | 'openrouter' | 'custom' | 'openai';
 
-export type ThemePreset = 'professional' | 'ocean' | 'forest' | 'cyber' | 'sunset' | 'light';
+export type ThemePreset = 'dark' | 'black' | 'ocean' | 'light';
 
 export interface PresetCommand {
   id: string;
