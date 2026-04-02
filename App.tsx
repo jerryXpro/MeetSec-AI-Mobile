@@ -58,8 +58,8 @@ const AppLayout: React.FC = () => {
           <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[100px]"></div>
         </div>
 
-        {/* Header/Status Bar */}
-        {/* Added pl-16 to avoid collision with hamburger button on mobile */}
+        {/* Header/Status Bar - Hidden in translator mode (it has its own header) */}
+        {viewMode !== 'translator' && (
         <header className="flex items-center justify-between px-6 py-3 border-b border-zinc-800/50 bg-background/50 backdrop-blur-sm z-10 shrink-0 pl-16 md:pl-6">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></span>
@@ -70,6 +70,7 @@ const AppLayout: React.FC = () => {
             {settings.geminiLiveModel.toUpperCase().replace('GEMINI-', '').replace('-PREVIEW', '')}
           </div>
         </header>
+        )}
 
         {/* Content Container */}
         <div className="flex-1 flex flex-col relative z-10 overflow-hidden min-h-0 pb-0">

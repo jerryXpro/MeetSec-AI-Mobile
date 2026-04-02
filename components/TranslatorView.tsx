@@ -19,12 +19,12 @@ interface IWindow extends Window {
 }
 
 const LANGUAGES = [
-    { code: 'zh-TW', name: '中文（繁體）', flag: '🇹🇼' },
-    { code: 'zh-CN', name: '中文（簡體）', flag: '🇨🇳' },
-    { code: 'en-US', name: 'English', flag: '🇺🇸' },
-    { code: 'ja-JP', name: '日本語', flag: '🇯🇵' },
-    { code: 'ko-KR', name: '한국어', flag: '🇰🇷' },
-    { code: 'vi-VN', name: 'Tiếng Việt', flag: '🇻🇳' },
+    { code: 'zh-TW', name: '中文（繁體）', flag: '🇹🇼', langHint: 'Traditional Chinese' },
+    { code: 'zh-CN', name: '中文（簡體）', flag: '🇨🇳', langHint: 'Simplified Chinese' },
+    { code: 'en-US', name: 'English', flag: '🇺🇸', langHint: 'English' },
+    { code: 'ja-JP', name: '日本語', flag: '🇯🇵', langHint: 'Japanese' },
+    { code: 'ko-KR', name: '한국어', flag: '🇰🇷', langHint: 'Korean' },
+    { code: 'vi-VN', name: 'Tiếng Việt', flag: '🇻🇳', langHint: 'Vietnamese' },
 ];
 
 type TTSMode = 'off' | 'target' | 'both';
@@ -126,14 +126,25 @@ const TranslatorView: React.FC = () => {
 
         const srcName = getLanguageName(sourceLang);
         const tgtName = getLanguageName(targetLang);
+        const tgtLangHint = LANGUAGES.find(l => l.code === targetLang)?.langHint || targetLang;
 
-        const prompt = `You are a professional translator. Translate the following text from ${srcName} to ${tgtName}. 
-Rules:
-- Output ONLY the translated text, no explanations.
+        const prompt = `You are a professional translator.
+
+## CRITICAL RULE: 
+You MUST translate into ${tgtName} (${tgtLangHint}). 
+Do NOT translate into English or any other language. 
+The output MUST be written entirely in ${tgtName}.
+
+## Task:
+Translate the following text from ${srcName} into ${tgtName}.
+
+## Rules:
+- Output ONLY the translated text in ${tgtName}, nothing else.
+- Do NOT add any explanations, notes, or annotations.
 - Maintain the original tone and formality.
-- If it's a greeting or short phrase, keep it natural in ${tgtName}.
+- If it’s a greeting or short phrase, keep it natural in ${tgtName}.
 
-Text to translate:
+## Text to translate:
 ${text}`;
 
         let translated = '';
