@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Modality } from '@google/genai';
 
 interface ChatMessage {
     id: string;
@@ -8,6 +8,14 @@ interface ChatMessage {
     text: string;
     timestamp: number;
 }
+
+const GEMINI_VOICES = [
+    { name: 'Aoede', label: 'Aoede', gender: '女聲' },
+    { name: 'Kore', label: 'Kore', gender: '女聲' },
+    { name: 'Puck', label: 'Puck', gender: '男聲' },
+    { name: 'Charon', label: 'Charon', gender: '男聲' },
+    { name: 'Fenrir', label: 'Fenrir', gender: '男聲' },
+];
 
 const SYSTEM_PROMPT = `你是一位叫做「小家人」的 AI 夥伴。你就像使用者最親近的家人一樣溫暖、真誠。
 
@@ -41,11 +49,12 @@ const ChatView: React.FC = () => {
 
     // TTS state
     const [ttsEnabled, setTtsEnabled] = useState(false);
-    const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-    const [selectedVoiceName, setSelectedVoiceName] = useState('');
+    const [selectedVoice, setSelectedVoice] = useState('Kore');
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [showVoicePanel, setShowVoicePanel] = useState(false);
     const ttsEnabledRef = useRef(false);
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
 
     useEffect(() => { ttsEnabledRef.current = ttsEnabled; }, [ttsEnabled]);
 
@@ -57,70 +66,89 @@ const ChatView: React.FC = () => {
 
     useEffect(() => { inputRef.current?.focus(); }, []);
 
-    // Load voices
+    // Cleanup on unmount
     useEffect(() => {
-        const loadVoices = () => {
-            const voices = window.speechSynthesis?.getVoices() || [];
-            setAvailableVoices(voices);
-        };
-        loadVoices();
-        window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
         return () => {
-            window.speechSynthesis?.removeEventListener('voiceschanged', loadVoices);
-            window.speechSynthesis?.cancel();
+            currentSourceRef.current?.stop();
+            audioContextRef.current?.close();
         };
     }, []);
 
-    // Get Chinese-preferred voices sorted by quality
-    const getChineseVoices = useCallback(() => {
-        return availableVoices
-            .filter(v => v.lang.startsWith('zh'))
-            .sort((a, b) => {
-                if (!a.localService && b.localService) return -1;
-                if (a.localService && !b.localService) return 1;
-                const aG = a.name.toLowerCase().includes('google');
-                const bG = b.name.toLowerCase().includes('google');
-                if (aG && !bG) return -1;
-                if (!aG && bG) return 1;
-                return a.name.localeCompare(b.name);
-            });
-    }, [availableVoices]);
+    // Speak using Gemini TTS
+    const speakWithGemini = useCallback(async (text: string) => {
+        const keys = settings.apiKeys.gemini?.split(',').map(k => k.trim()).filter(Boolean) || [];
+        if (keys.length === 0) return;
 
-    // Speak text
-    const speakText = useCallback((text: string) => {
-        if (!window.speechSynthesis) return;
-        window.speechSynthesis.cancel();
-
-        // Clean text: remove emojis/markdown for cleaner speech
-        const cleanText = text.replace(/[*#_~`>]/g, '').replace(/\p{Emoji_Presentation}/gu, '').trim();
+        // Clean text for speech
+        const cleanText = text.replace(/[*#_~`>]/g, '').trim();
         if (!cleanText) return;
 
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = 'zh-TW';
-        utterance.rate = 0.95;
-        utterance.pitch = 1.05;
+        setIsSpeaking(true);
 
-        const voices = window.speechSynthesis.getVoices();
-        // Use selected voice or auto-pick best Chinese voice
-        let voice = selectedVoiceName ? voices.find(v => v.name === selectedVoiceName) : null;
-        if (!voice) {
-            const zhVoices = voices.filter(v => v.lang.startsWith('zh')).sort((a, b) => {
-                if (!a.localService && b.localService) return -1;
-                if (a.localService && !b.localService) return 1;
-                return 0;
-            });
-            voice = zhVoices[0] || null;
+        for (const key of keys) {
+            try {
+                const ai = new GoogleGenAI({ apiKey: key });
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash-preview-tts',
+                    contents: [{ role: 'user', parts: [{ text: cleanText }] }],
+                    config: {
+                        responseModalities: [Modality.AUDIO],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: selectedVoice }
+                            }
+                        }
+                    }
+                });
+
+                // Extract audio data
+                const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+                if (audioData?.data) {
+                    // Decode base64 audio
+                    const binaryStr = atob(audioData.data);
+                    const bytes = new Uint8Array(binaryStr.length);
+                    for (let i = 0; i < binaryStr.length; i++) {
+                        bytes[i] = binaryStr.charCodeAt(i);
+                    }
+
+                    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+                        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    }
+                    const ctx = audioContextRef.current;
+
+                    // The TTS API returns PCM audio (16-bit, 24kHz, mono)
+                    const int16 = new Int16Array(bytes.buffer);
+                    const float32 = new Float32Array(int16.length);
+                    for (let i = 0; i < int16.length; i++) {
+                        float32[i] = int16[i] / 32768.0;
+                    }
+
+                    const audioBuffer = ctx.createBuffer(1, float32.length, 24000);
+                    audioBuffer.getChannelData(0).set(float32);
+
+                    // Stop any previous playback
+                    currentSourceRef.current?.stop();
+
+                    const source = ctx.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(ctx.destination);
+                    source.onended = () => setIsSpeaking(false);
+                    source.start();
+                    currentSourceRef.current = source;
+                    return; // Success
+                }
+                break;
+            } catch (err: any) {
+                if (err.message?.includes('429') || err.message?.includes('quota')) continue;
+                console.error('Gemini TTS error:', err);
+                break;
+            }
         }
-        if (voice) utterance.voice = voice;
-
-        utterance.onstart = () => setIsSpeaking(true);
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
-        window.speechSynthesis.speak(utterance);
-    }, [selectedVoiceName]);
+        setIsSpeaking(false);
+    }, [settings, selectedVoice]);
 
     const stopSpeaking = () => {
-        window.speechSynthesis?.cancel();
+        try { currentSourceRef.current?.stop(); } catch {}
         setIsSpeaking(false);
     };
 
@@ -184,9 +212,9 @@ const ChatView: React.FC = () => {
         }]);
         setIsThinking(false);
 
-        // Auto TTS for AI reply
+        // Auto TTS
         if (ttsEnabledRef.current && reply) {
-            setTimeout(() => speakText(reply), 200);
+            setTimeout(() => speakWithGemini(reply), 200);
         }
     };
 
@@ -198,9 +226,6 @@ const ChatView: React.FC = () => {
     const formatTime = (ts: number) => {
         return new Date(ts).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
     };
-
-    const chineseVoices = getChineseVoices();
-    const allVoices = availableVoices.sort((a, b) => a.name.localeCompare(b.name));
 
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden relative">
@@ -229,7 +254,7 @@ const ChatView: React.FC = () => {
                         {/* TTS Toggle */}
                         <button
                             onClick={() => {
-                                if (ttsEnabled) { stopSpeaking(); }
+                                if (ttsEnabled) stopSpeaking();
                                 setTtsEnabled(!ttsEnabled);
                                 if (!ttsEnabled) setShowVoicePanel(true);
                             }}
@@ -277,40 +302,36 @@ const ChatView: React.FC = () => {
 
                 {/* Voice Selection Panel */}
                 {showVoicePanel && ttsEnabled && (
-                    <div className="mt-3 p-3 bg-zinc-900/80 border border-zinc-700/50 rounded-xl space-y-2 animate-fade-in-up">
+                    <div className="mt-3 p-3 bg-zinc-900/80 border border-zinc-700/50 rounded-xl space-y-3 animate-fade-in-up">
                         <div className="flex items-center justify-between">
-                            <span className="text-xs text-zinc-400">🎙️ 語音音色</span>
+                            <span className="text-xs text-zinc-400">🎙️ Gemini AI 語音角色</span>
                             <button
-                                onClick={() => { speakText('你好呀～我是小家人，很高興認識你！'); }}
+                                onClick={() => speakWithGemini('你好呀～我是小家人，很高興認識你！')}
                                 className="text-[0.6rem] text-purple-400 hover:text-purple-300 transition-colors px-2 py-0.5 rounded bg-purple-500/10"
                             >
                                 ▶ 試聽
                             </button>
                         </div>
-                        <select
-                            value={selectedVoiceName}
-                            onChange={(e) => setSelectedVoiceName(e.target.value)}
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-purple-500"
-                        >
-                            <option value="">自動選擇 (最佳中文語音)</option>
-                            {chineseVoices.length > 0 && (
-                                <optgroup label="🇹🇼 中文語音 (推薦)">
-                                    {chineseVoices.map(v => (
-                                        <option key={v.name} value={v.name}>
-                                            {v.name} {!v.localService ? '☁️' : '📱'}
-                                        </option>
-                                    ))}
-                                </optgroup>
-                            )}
-                            <optgroup label="🌍 所有語音">
-                                {allVoices.map(v => (
-                                    <option key={v.name} value={v.name}>
-                                        {v.name} [{v.lang}] {!v.localService ? '☁️' : '📱'}
-                                    </option>
-                                ))}
-                            </optgroup>
-                        </select>
-                        <p className="text-[0.55rem] text-zinc-600">☁️ 雲端語音品質較佳 · 📱 本地語音離線可用</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                            {GEMINI_VOICES.map(v => (
+                                <button
+                                    key={v.name}
+                                    onClick={() => setSelectedVoice(v.name)}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-left ${
+                                        selectedVoice === v.name
+                                            ? 'bg-purple-500/20 border-purple-500/50 text-purple-200'
+                                            : 'bg-zinc-800/50 border-zinc-700/50 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
+                                    }`}
+                                >
+                                    <span className="text-sm">{v.gender === '女聲' ? '👩' : '👨'}</span>
+                                    <div>
+                                        <p className="text-xs font-medium">{v.label}</p>
+                                        <p className="text-[0.55rem] text-zinc-500">{v.gender}</p>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-[0.55rem] text-zinc-600">✨ 使用 Gemini AI 語音引擎，同小助手的高品質語音</p>
                     </div>
                 )}
             </div>
@@ -364,7 +385,7 @@ const ChatView: React.FC = () => {
                                         </span>
                                         {msg.role === 'ai' && (
                                             <button
-                                                onClick={() => speakText(msg.text)}
+                                                onClick={() => speakWithGemini(msg.text)}
                                                 className="text-zinc-600 hover:text-purple-400 transition-colors p-0.5"
                                                 title="朗讀此則回覆"
                                             >
