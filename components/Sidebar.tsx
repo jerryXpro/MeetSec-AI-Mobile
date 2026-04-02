@@ -587,19 +587,37 @@ const Sidebar: React.FC = () => {
                                             <div className="pt-2 border-t border-zinc-800/50 space-y-4">
                                                 <label className="text-[0.85em] font-semibold text-zinc-400 uppercase tracking-wider block">排版與文字 (Typography)</label>
                                                 
-                                                {/* Font Size */}
-                                                <div className="space-y-1">
-                                                    <span className="text-[0.7em] text-zinc-500 block">文字大小 (Size)</span>
-                                                    <div className="flex gap-1.5">
-                                                        {(['sm', 'md', 'lg', 'xl'] as const).map(size => (
-                                                            <button
-                                                                key={size}
-                                                                onClick={() => updateSettings({ contentFontSize: size, uiFontSize: size === 'xl' ? 'lg' : size })}
-                                                                className={`flex-1 py-1.5 rounded border text-xs capitalize ${settings.contentFontSize === size ? 'bg-primary/20 border-primary text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
-                                                            >
-                                                                {size === 'sm' ? '小' : size === 'md' ? '中' : size === 'lg' ? '大' : '特大'}
-                                                            </button>
-                                                        ))}
+                                                <div className="space-y-4">
+                                                    {/* Font Size - UI */}
+                                                    <div className="space-y-1">
+                                                        <span className="text-[0.7em] text-zinc-500 block">介面字體大小 (UI Size)</span>
+                                                        <div className="flex gap-1.5">
+                                                            {(['sm', 'md', 'lg'] as const).map(size => (
+                                                                <button
+                                                                    key={size}
+                                                                    onClick={() => updateSettings({ uiFontSize: size })}
+                                                                    className={`flex-1 py-1.5 rounded border text-xs capitalize ${settings.uiFontSize === size ? 'bg-primary/20 border-primary text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
+                                                                >
+                                                                    {size === 'sm' ? '小' : size === 'md' ? '中' : '大'}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Font Size - Content */}
+                                                    <div className="space-y-1">
+                                                        <span className="text-[0.7em] text-zinc-500 block">內容字體大小 (Content Size)</span>
+                                                        <div className="flex gap-1.5">
+                                                            {(['sm', 'md', 'lg', 'xl'] as const).map(size => (
+                                                                <button
+                                                                    key={size}
+                                                                    onClick={() => updateSettings({ contentFontSize: size })}
+                                                                    className={`flex-1 py-1.5 rounded border text-xs capitalize ${settings.contentFontSize === size ? 'bg-primary/20 border-primary text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
+                                                                >
+                                                                    {size === 'sm' ? '小' : size === 'md' ? '中' : size === 'lg' ? '大' : '特大'}
+                                                                </button>
+                                                            ))}
+                                                        </div>
                                                     </div>
                                                 </div>
 

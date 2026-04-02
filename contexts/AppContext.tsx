@@ -241,7 +241,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [settings.themeMode, settings.themePreset, settings.customColors]);
 
   const updateSettings = (newSettings: Partial<AppSettings>) => {
-    setSettings(prev => ({ ...prev, ...newSettings }));
+    setSettings(prev => {
+      const merged = { ...prev, ...newSettings };
+      
+      // Auto-sync customColors when a preset is chosen so the Color Picker UI reflects it
+      if (newSettings.themePreset && merged.themeMode === 'preset') {
+         merged.customColors = THEME_PRESETS[newSettings.themePreset].colors;
+      }
+      
+      return merged;
+    });
   };
 
   const saveMeeting = (session: MeetingSession) => {
