@@ -73,8 +73,11 @@ const transcribeWithGemini = async (file: File, settings: AppSettings): Promise<
     const systemPrompt = `
       You are an expert audio transcriber specializing in **Speaker Diarization**.
       **Context**: ${languageInstruction}
-      **CRITICAL**: Distinguish speakers (Speaker 1, Speaker 2) clearly.
-      **Format**: [MM:SS] Speaker Name: Content
+      **CRITICAL RULES**: 
+      1. Distinguish speakers (e.g., Speaker 1, Speaker 2) clearly.
+      2. Format each turn exactly as: "[MM:SS] Speaker Name: Content".
+      3. **MANDATORY**: You MUST insert a double newline (\\n\\n) after every speaker's block of text so that each speaker gets their own distinct paragraph. 
+      DO NOT output a single massive block of text.
     `;
 
     // MimeType Fallback
