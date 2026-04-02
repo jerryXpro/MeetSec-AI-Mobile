@@ -167,47 +167,50 @@ const Sidebar: React.FC = () => {
     }, [sidebarTab]);
 
     const handleProfileFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file || !editingProfileId) return;
+        const files = Array.from(e.target.files || []) as File[];
+        if (files.length === 0 || !editingProfileId) return;
 
-        if (file.size > MAX_FILE_SIZE) {
-            alert(`檔案過大(${(file.size / 1024 / 1024).toFixed(1)}MB)。請上傳小於 10MB 的檔案。`);
-            if (profileFileInputRef.current) profileFileInputRef.current.value = '';
-            return;
+        for (const file of files) {
+            if (file.size > MAX_FILE_SIZE) {
+                alert(`檔案 ${file.name} 過大(${(file.size / 1024 / 1024).toFixed(1)}MB)。請上傳小於 10MB 的檔案。`);
+                continue;
+            }
+
+            processFile(file, (text) => {
+                const newDoc: ProfileDocument = {
+                    id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 5),
+                    name: file.name,
+                    content: text,
+                    type: file.name.split('.').pop() || 'txt',
+                    dateAdded: Date.now()
+                };
+                addDocumentToProfile(editingProfileId, newDoc);
+            });
         }
-
-        processFile(file, (text) => {
-            const newDoc: ProfileDocument = {
-                id: Date.now().toString(),
-                name: file.name,
-                content: text,
-                type: file.name.split('.').pop() || 'txt',
-                dateAdded: Date.now()
-            };
-            addDocumentToProfile(editingProfileId, newDoc);
-        });
         if (profileFileInputRef.current) profileFileInputRef.current.value = '';
     };
 
     const handleContextFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const files = Array.from(e.target.files || []) as File[];
+        if (files.length === 0) return;
 
-        if (safeTemporaryFiles.length >= 3) {
-            alert("最多只能上傳 3 個補充檔案。");
+        const maxFiles = 20;
+        if (safeTemporaryFiles.length + files.length > maxFiles) {
+            alert(`最多只能上傳 ${maxFiles} 個補充檔案。目前已有 ${safeTemporaryFiles.length} 個。`);
             if (contextFileInputRef.current) contextFileInputRef.current.value = '';
             return;
         }
 
-        if (file.size > MAX_FILE_SIZE) {
-            alert(`檔案過大(${(file.size / 1024 / 1024).toFixed(1)}MB)。請上傳小於 10MB 的檔案。`);
-            if (contextFileInputRef.current) contextFileInputRef.current.value = '';
-            return;
-        }
+        for (const file of files) {
+            if (file.size > MAX_FILE_SIZE) {
+                alert(`檔案 ${file.name} 過大(${(file.size / 1024 / 1024).toFixed(1)}MB)。請上傳小於 10MB 的檔案。`);
+                continue;
+            }
 
-        processFile(file, (text) => {
-            addTemporaryFile(file.name, text);
-        });
+            processFile(file, (text) => {
+                addTemporaryFile(file.name, text);
+            });
+        }
         if (contextFileInputRef.current) contextFileInputRef.current.value = '';
     };
 
@@ -477,7 +480,7 @@ const Sidebar: React.FC = () => {
                                                                         </div>
                                                                     ))}
                                                                 </div>
-                                                                <input type="file" ref={profileFileInputRef} onChange={handleProfileFileChange} className="hidden" />
+                                                                <input type="file" multiple ref={profileFileInputRef} onChange={handleProfileFileChange} className="hidden" />
                                                                 <button onClick={() => profileFileInputRef.current?.click()} className="w-full py-2 border border-dashed border-zinc-700 rounded text-[0.8em] text-zinc-400 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2">
                                                                     {isParsing ? "解析中..." : "上傳新文件 (PDF/Txt)"}
                                                                 </button>
@@ -791,7 +794,9 @@ const Sidebar: React.FC = () => {
                                                                 onChange={(e) => updateSettings({ geminiAnalysisModel: e.target.value })}
                                                                 className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none"
                                                             >
-                                                                <option value="gemini-2.5-flash">Gemini 2.5 Flash ⭐</option>
+                                                                <option value="gemini-3.1-pro">Gemini 3.1 Pro ⭐</option>
+                                                                <option value="gemini-3.1-flash">Gemini 3.1 Flash</option>
+                                                                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                                                                 <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
                                                                 <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                                                                 <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>

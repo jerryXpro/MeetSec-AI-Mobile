@@ -81,8 +81,8 @@ const defaultSettings: AppSettings = {
   provider: 'gemini',
   apiKeys: { gemini: '', openrouter: '' },
   geminiTranscriptionModel: 'gemini-2.0-flash',
-  geminiAnalysisModel: 'gemini-2.5-flash',
-  geminiLiveModel: 'gemini-2.5-flash-native-audio-preview-12-2025',
+  geminiAnalysisModel: 'gemini-3.1-pro',
+  geminiLiveModel: 'gemini-3.1-flash-live-preview',
   openrouterModel: 'google/gemini-2.0-flash-lite-preview-02-05:free',
   customBaseUrl: 'http://localhost:11434/v1',
   customApiKey: '',
@@ -152,12 +152,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       // Live models - whitelist only known valid Live API models
       const validLiveModels = [
+        'gemini-3.1-flash-live-preview',
         'gemini-2.5-flash-native-audio-preview-12-2025',
         'gemini-2.5-flash-native-audio-preview-09-2025',
       ];
       if (!merged.geminiLiveModel || !validLiveModels.includes(merged.geminiLiveModel)) {
         console.warn(`[AppContext] Invalid Live model "${merged.geminiLiveModel}", resetting to default.`);
-        merged.geminiLiveModel = 'gemini-2.5-flash-native-audio-preview-12-2025';
+        merged.geminiLiveModel = 'gemini-3.1-flash-live-preview';
       }
       return merged;
     } catch (e) { return defaultSettings; }
