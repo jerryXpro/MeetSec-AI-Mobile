@@ -34,6 +34,13 @@ const AssistantPanel: React.FC = () => {
     const [newPresetName, setNewPresetName] = useState("");
     const [newPresetPrompt, setNewPresetPrompt] = useState("");
 
+    // Template Management State
+    const [showTemplateManager, setShowTemplateManager] = useState(false);
+    const [isAddingTemplate, setIsAddingTemplate] = useState(false);
+    const [newTemplateName, setNewTemplateName] = useState("");
+    const [newTemplatePrompt, setNewTemplatePrompt] = useState("");
+    const templateManagerRef = useRef<HTMLDivElement>(null);
+
     // Chat State
     const [chatInput, setChatInput] = useState('');
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -147,6 +154,10 @@ const AssistantPanel: React.FC = () => {
                 setShowPresetsMenu(false);
                 setIsAddingPreset(false);
             }
+            if (templateManagerRef.current && !templateManagerRef.current.contains(event.target as Node)) {
+                setShowTemplateManager(false);
+                setIsAddingTemplate(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -252,6 +263,40 @@ const AssistantPanel: React.FC = () => {
     const handleDeletePreset = (id: string) => {
         const updated = (settings.presetCommands || []).filter(p => p.id !== id);
         updateSettings({ presetCommands: updated });
+    };
+
+    // Template Management Handlers
+    const handleAddTemplate = () => {
+        if (!newTemplateName.trim() || !newTemplatePrompt.trim()) return;
+        const newTemplate = {
+            id: Date.now().toString(),
+            name: newTemplateName.trim(),
+            prompt: newTemplatePrompt.trim(),
+            isDefault: false
+        };
+        const updated = [...(settings.reportTemplates || []), newTemplate];
+        updateSettings({ reportTemplates: updated, activeTemplateId: newTemplate.id });
+        setNewTemplateName("");
+        setNewTemplatePrompt("");
+        setIsAddingTemplate(false);
+    };
+
+    const handleDeleteTemplate = (id: string) => {
+        const templates = settings.reportTemplates || [];
+        const target = templates.find(t => t.id === id);
+        if (target?.isDefault) return; // Don't delete default templates
+        const updated = templates.filter(t => t.id !== id);
+        updateSettings({
+            reportTemplates: updated,
+            activeTemplateId: updated.length > 0 ? updated[0].id : ''
+        });
+    };
+
+    const handleRegenerateWithTemplate = (templateId?: string) => {
+        if (templateId) {
+            updateSettings({ activeTemplateId: templateId });
+        }
+        handleAnalyze();
     };
 
     const handleChatSubmit = async (e?: React.FormEvent) => {
@@ -481,6 +526,113 @@ const AssistantPanel: React.FC = () => {
                                                     )}
                                                 </div>
                                             </div>
+
+                                            {/* Regenerate with Template Toolbar */}
+                                            <div className="mb-3 p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-2" ref={templateManagerRef}>
+                                                <div className="flex items-center gap-2">
+                                                    <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                                    <select
+                                                        value={settings.activeTemplateId}
+                                                        onChange={(e) => updateSettings({ activeTemplateId: e.target.value })}
+                                                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-[0.75em] text-zinc-300 focus:outline-none focus:border-blue-500 transition-colors min-w-0"
+                                                    >
+                                                        {(settings.reportTemplates || []).map(t => (
+                                                            <option key={t.id} value={t.id}>{t.name}</option>
+                                                        ))}
+                                                    </select>
+                                                    <button
+                                                        onClick={() => handleRegenerateWithTemplate()}
+                                                        disabled={isAnalyzing}
+                                                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[0.75em] font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+                                                        title="使用選定的範本重新生成"
+                                                    >
+                                                        {isAnalyzing ? (
+                                                            <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                                        ) : (
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                                        )}
+                                                        重新生成
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setShowTemplateManager(!showTemplateManager)}
+                                                        className={`p-1.5 rounded-lg transition-colors shrink-0 ${showTemplateManager ? 'bg-blue-500/20 text-blue-400' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}
+                                                        title="管理範本"
+                                                    >
+                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                    </button>
+                                                </div>
+
+                                                {/* Template Manager Panel */}
+                                                {showTemplateManager && (
+                                                    <div className="mt-2 p-3 bg-zinc-800/80 border border-zinc-700/50 rounded-xl space-y-2 animate-fade-in-up">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs text-zinc-400 font-medium">📄 會議範本管理</span>
+                                                            {!isAddingTemplate && (
+                                                                <button onClick={() => setIsAddingTemplate(true)} className="text-[0.65rem] text-blue-400 hover:text-blue-300 flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500/10">
+                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                                                    新增範本
+                                                                </button>
+                                                            )}
+                                                        </div>
+
+                                                        {isAddingTemplate ? (
+                                                            <div className="space-y-2 p-2 bg-zinc-900/80 rounded-lg border border-zinc-700/50 animate-fade-in-up">
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="範本名稱 (例: 📋 專案進度報告)"
+                                                                    value={newTemplateName}
+                                                                    onChange={(e) => setNewTemplateName(e.target.value)}
+                                                                    className="w-full bg-zinc-900 border border-zinc-600 rounded-lg px-3 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
+                                                                    autoFocus
+                                                                />
+                                                                <textarea
+                                                                    placeholder="範本指令 (例: 請整理一份專案進度報告，包含...)"
+                                                                    value={newTemplatePrompt}
+                                                                    onChange={(e) => setNewTemplatePrompt(e.target.value)}
+                                                                    className="w-full bg-zinc-900 border border-zinc-600 rounded-lg px-3 py-1.5 text-xs text-white focus:border-blue-500 outline-none h-20 resize-none"
+                                                                />
+                                                                <div className="flex justify-end gap-2">
+                                                                    <button onClick={() => { setIsAddingTemplate(false); setNewTemplateName(''); setNewTemplatePrompt(''); }} className="text-xs text-zinc-400 hover:text-white px-2 py-1">取消</button>
+                                                                    <button onClick={handleAddTemplate} disabled={!newTemplateName.trim() || !newTemplatePrompt.trim()} className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-lg disabled:opacity-50">儲存</button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
+                                                                {(settings.reportTemplates || []).map(template => (
+                                                                    <div key={template.id} className="group flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-zinc-700/50 transition-colors">
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                updateSettings({ activeTemplateId: template.id });
+                                                                                setShowTemplateManager(false);
+                                                                                handleRegenerateWithTemplate(template.id);
+                                                                            }}
+                                                                            className={`flex-1 text-left text-xs truncate transition-colors ${
+                                                                                settings.activeTemplateId === template.id
+                                                                                    ? 'text-blue-300 font-medium'
+                                                                                    : 'text-zinc-400 group-hover:text-zinc-200'
+                                                                            }`}
+                                                                            title={template.prompt}
+                                                                        >
+                                                                            {settings.activeTemplateId === template.id && <span className="mr-1">✓</span>}
+                                                                            {template.name}
+                                                                        </button>
+                                                                        {!template.isDefault && (
+                                                                            <button
+                                                                                onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(template.id); }}
+                                                                                className="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 p-1 transition-all"
+                                                                                title="刪除此範本"
+                                                                            >
+                                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+
                                             <div className="prose prose-invert prose-sm max-w-none bg-zinc-900 p-4 rounded-xl border border-zinc-800/50 shadow-inner">
                                                 <div className="whitespace-pre-wrap font-mono text-[0.9em] leading-relaxed text-zinc-300">
                                                     {analysisResult}
