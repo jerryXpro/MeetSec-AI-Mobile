@@ -41,6 +41,13 @@ const TranslatorView: React.FC = () => {
     const [inputText, setInputText] = useState('');
     const [isTranslating, setIsTranslating] = useState(false);
 
+    // TTS (Browser SpeechSynthesis for text mode)
+    type TTSMode = 'off' | 'target' | 'both';
+    const [ttsMode, setTtsMode] = useState<TTSMode>('off');
+    const [isSpeaking, setIsSpeaking] = useState(false);
+    const ttsModeRef = useRef<TTSMode>('off');
+    useEffect(() => { ttsModeRef.current = ttsMode; }, [ttsMode]);
+
     // Live connection state
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.DISCONNECTED);
 
@@ -78,8 +85,59 @@ const TranslatorView: React.FC = () => {
 
     // Cleanup on unmount
     useEffect(() => {
-        return () => { disconnectLive(); };
+        return () => {
+            disconnectLive();
+            window.speechSynthesis?.cancel();
+        };
     }, []);
+
+    // --- Browser TTS for text-mode translations ---
+    const speakText = useCallback((text: string, langCode: string): Promise<void> => {
+        return new Promise((resolve) => {
+            if (!window.speechSynthesis) { resolve(); return; }
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = langCode;
+            utterance.rate = 0.92;
+            const voices = window.speechSynthesis.getVoices();
+            const langPrefix = langCode.split('-')[0];
+            const candidates = voices
+                .filter(v => v.lang === langCode || v.lang.startsWith(langPrefix))
+                .sort((a, b) => {
+                    if (!a.localService && b.localService) return -1;
+                    if (a.localService && !b.localService) return 1;
+                    const aG = a.name.toLowerCase().includes('google');
+                    const bG = b.name.toLowerCase().includes('google');
+                    if (aG && !bG) return -1;
+                    if (!aG && bG) return 1;
+                    return 0;
+                });
+            if (candidates[0]) utterance.voice = candidates[0];
+            utterance.onend = () => resolve();
+            utterance.onerror = () => resolve();
+            window.speechSynthesis.speak(utterance);
+        });
+    }, []);
+
+    const handleTTS = useCallback(async (entry: TranslationEntry, mode: TTSMode) => {
+        if (mode === 'off') return;
+        setIsSpeaking(true);
+        try {
+            if (mode === 'both') {
+                await speakText(entry.source, sourceLangRef.current);
+                await new Promise(r => setTimeout(r, 400));
+            }
+            await speakText(entry.translated, targetLangRef.current);
+        } finally {
+            setIsSpeaking(false);
+        }
+    }, [speakText]);
+
+    const replayTTS = (entry: TranslationEntry, mode: 'source' | 'target') => {
+        window.speechSynthesis?.cancel();
+        const langCode = mode === 'source' ? sourceLangRef.current : targetLangRef.current;
+        const text = mode === 'source' ? entry.source : entry.translated;
+        speakText(text, langCode);
+    };
 
     const getLanguageName = (code: string) => LANGUAGES.find(l => l.code === code)?.name || code;
     const getLanguageHint = (code: string) => LANGUAGES.find(l => l.code === code)?.langHint || code;
@@ -391,7 +449,12 @@ const TranslatorView: React.FC = () => {
         };
         setHistory(prev => [...prev, entry]);
         setIsTranslating(false);
-    }, [settings, sourceLang, targetLang, isTranslating]);
+
+        // Auto TTS after text translation
+        if (ttsModeRef.current !== 'off' && success) {
+            handleTTS(entry, ttsModeRef.current);
+        }
+    }, [settings, sourceLang, targetLang, isTranslating, handleTTS]);
 
     // Send text through Live session
     const sendTextToLive = useCallback((text: string) => {
@@ -500,8 +563,40 @@ const TranslatorView: React.FC = () => {
                             </div>
                         </div>
                         <p className="text-[0.6rem] text-zinc-600 pl-1">
-                            ⚠️ 切換語音需重新連線才會生效
+                            ⚠️ 切換語音需重新連線才會生效（語音翻譯模式使用 AI 語音）
                         </p>
+
+                        {/* TTS Mode (for text translation) */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-zinc-400">🔊 語音朗讀</span>
+                                <span className="text-[0.6rem] text-zinc-600">(文字翻譯)</span>
+                            </div>
+                            <div className="flex gap-1">
+                                {([
+                                    { value: 'off' as TTSMode, label: '關閉', icon: '🔇' },
+                                    { value: 'target' as TTSMode, label: '單向', icon: '🔈' },
+                                    { value: 'both' as TTSMode, label: '雙向', icon: '🔊' },
+                                ]).map(opt => (
+                                    <button
+                                        key={opt.value}
+                                        onClick={() => setTtsMode(opt.value)}
+                                        className={`px-2.5 py-1 text-[0.65rem] rounded-lg border transition-all ${
+                                            ttsMode === opt.value
+                                                ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                                                : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'
+                                        }`}
+                                    >
+                                        {opt.icon} {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        {ttsMode !== 'off' && (
+                            <p className="text-[0.6rem] text-zinc-600 pl-1">
+                                {ttsMode === 'target' ? '📌 文字翻譯完成後自動朗讀目標語言' : '📌 文字翻譯完成後先朗讀原文，再朗讀譯文'}
+                            </p>
+                        )}
                     </div>
                 )}
 
@@ -564,9 +659,14 @@ const TranslatorView: React.FC = () => {
                                 <div className="px-4 py-3 border-b border-zinc-800/50">
                                     <div className="flex items-center justify-between mb-1.5">
                                         <span className="text-[0.65rem] font-medium text-zinc-500">{entry.sourceLang}</span>
-                                        <button onClick={() => copyToClipboard(entry.source)} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1" title="複製原文">
-                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                                        </button>
+                                        <div className="flex items-center gap-0.5">
+                                            <button onClick={() => replayTTS(entry, 'source')} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1" title="朗讀原文">
+                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M17.95 6.05a8 8 0 010 11.9M6.5 8.8l4.14-3.45a.75.75 0 011.36.45v12.4a.75.75 0 01-1.36.45L6.5 15.2H4a1 1 0 01-1-1v-4.4a1 1 0 011-1h2.5z" /></svg>
+                                            </button>
+                                            <button onClick={() => copyToClipboard(entry.source)} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1" title="複製原文">
+                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                            </button>
+                                        </div>
                                     </div>
                                     <p className="text-zinc-300 text-sm leading-relaxed">{entry.source}</p>
                                 </div>
@@ -574,9 +674,14 @@ const TranslatorView: React.FC = () => {
                                 <div className="px-4 py-3 bg-emerald-500/5">
                                     <div className="flex items-center justify-between mb-1.5">
                                         <span className="text-[0.65rem] font-medium text-emerald-400">{entry.targetLang}</span>
-                                        <button onClick={() => copyToClipboard(entry.translated)} className="text-zinc-600 hover:text-emerald-300 transition-colors p-1" title="複製翻譯">
-                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                                        </button>
+                                        <div className="flex items-center gap-0.5">
+                                            <button onClick={() => replayTTS(entry, 'target')} className="text-zinc-600 hover:text-emerald-300 transition-colors p-1" title="朗讀翻譯">
+                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M17.95 6.05a8 8 0 010 11.9M6.5 8.8l4.14-3.45a.75.75 0 011.36.45v12.4a.75.75 0 01-1.36.45L6.5 15.2H4a1 1 0 01-1-1v-4.4a1 1 0 011-1h2.5z" /></svg>
+                                            </button>
+                                            <button onClick={() => copyToClipboard(entry.translated)} className="text-zinc-600 hover:text-emerald-300 transition-colors p-1" title="複製翻譯">
+                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                            </button>
+                                        </div>
                                     </div>
                                     <p className="text-emerald-100 text-sm leading-relaxed font-medium">{entry.translated}</p>
                                 </div>
