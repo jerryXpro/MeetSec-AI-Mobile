@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
+import { createPcmBlob, base64ToBytes, decodeAudioData, downsampleBuffer } from '../utils/audioUtils';
+import { ConnectionState } from '../types';
 import { downloadAsWord, downloadAsPDF } from '../utils/downloadUtils';
 
 interface TranslationEntry {
@@ -9,319 +11,330 @@ interface TranslationEntry {
     translated: string;
     sourceLang: string;
     targetLang: string;
-    sourceLangCode: string;
-    targetLangCode: string;
-}
-
-interface IWindow extends Window {
-    webkitSpeechRecognition: any;
-    SpeechRecognition: any;
 }
 
 const LANGUAGES = [
-    { code: 'zh-TW', name: '中文（繁體）', flag: '🇹🇼', langHint: 'Traditional Chinese' },
-    { code: 'zh-CN', name: '中文（簡體）', flag: '🇨🇳', langHint: 'Simplified Chinese' },
+    { code: 'zh-TW', name: '中文（繁體）', flag: '🇹🇼', langHint: 'Traditional Chinese (繁體中文)' },
+    { code: 'zh-CN', name: '中文（簡體）', flag: '🇨🇳', langHint: 'Simplified Chinese (简体中文)' },
     { code: 'en-US', name: 'English', flag: '🇺🇸', langHint: 'English' },
-    { code: 'ja-JP', name: '日本語', flag: '🇯🇵', langHint: 'Japanese' },
-    { code: 'ko-KR', name: '한국어', flag: '🇰🇷', langHint: 'Korean' },
-    { code: 'vi-VN', name: 'Tiếng Việt', flag: '🇻🇳', langHint: 'Vietnamese' },
+    { code: 'ja-JP', name: '日本語', flag: '🇯🇵', langHint: 'Japanese (日本語)' },
+    { code: 'ko-KR', name: '한국어', flag: '🇰🇷', langHint: 'Korean (한국어)' },
+    { code: 'vi-VN', name: 'Tiếng Việt', flag: '🇻🇳', langHint: 'Vietnamese (Tiếng Việt)' },
 ];
 
-type TTSMode = 'off' | 'target' | 'both';
+const GEMINI_VOICES = [
+    { name: 'Aoede', label: 'Aoede', gender: '女聲' },
+    { name: 'Kore', label: 'Kore', gender: '女聲' },
+    { name: 'Puck', label: 'Puck', gender: '男聲' },
+    { name: 'Charon', label: 'Charon', gender: '男聲' },
+    { name: 'Fenrir', label: 'Fenrir', gender: '男聲' },
+];
 
 const TranslatorView: React.FC = () => {
     const { settings } = useApp();
     const [sourceLang, setSourceLang] = useState('zh-TW');
     const [targetLang, setTargetLang] = useState('en-US');
-    const [inputText, setInputText] = useState('');
     const [history, setHistory] = useState<TranslationEntry[]>([]);
-    const [isTranslating, setIsTranslating] = useState(false);
-    const [isListening, setIsListening] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showSettings, setShowSettings] = useState(false);
+    const [selectedVoice, setSelectedVoice] = useState(settings.geminiVoice || 'Kore');
 
-    // Feature 1: Continuous mode
-    const [continuousMode, setContinuousMode] = useState(false);
-    // Feature 2: TTS
-    const [ttsMode, setTtsMode] = useState<TTSMode>('off');
-    const [isSpeaking, setIsSpeaking] = useState(false);
-    const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-    const [voicePrefs, setVoicePrefs] = useState<Record<string, string>>({});  // langCode -> voiceName
+    // Live connection state
+    const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.DISCONNECTED);
 
-    const recognitionRef = useRef<any>(null);
+    // Partial transcription display
+    const [partialInput, setPartialInput] = useState('');
+    const [partialOutput, setPartialOutput] = useState('');
+
+    // Live session refs
+    const activeRef = useRef(false);
+    const sessionRef = useRef<any>(null);
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const mediaStreamRef = useRef<MediaStream | null>(null);
+    const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+    const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
+    const nextStartTimeRef = useRef(0);
+    const audioSourcesRef = useRef(new Set<AudioBufferSourceNode>());
+
+    // Transcription accumulation
+    const currentInputRef = useRef('');
+    const currentOutputRef = useRef('');
+    const sourceLangRef = useRef(sourceLang);
+    const targetLangRef = useRef(targetLang);
+
     const historyContainerRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
-    const continuousModeRef = useRef(continuousMode);
-    const isTranslatingRef = useRef(false);
-    const ttsModeRef = useRef<TTSMode>(ttsMode);
 
-    // Keep refs in sync for use inside callbacks
-    useEffect(() => { continuousModeRef.current = continuousMode; }, [continuousMode]);
-    useEffect(() => { ttsModeRef.current = ttsMode; }, [ttsMode]);
+    // Keep refs in sync
+    useEffect(() => { sourceLangRef.current = sourceLang; }, [sourceLang]);
+    useEffect(() => { targetLangRef.current = targetLang; }, [targetLang]);
 
     useEffect(() => {
         if (historyContainerRef.current) {
             historyContainerRef.current.scrollTop = historyContainerRef.current.scrollHeight;
         }
-    }, [history]);
+    }, [history, partialInput, partialOutput]);
 
-    // Cleanup speech on unmount
+    // Cleanup on unmount
     useEffect(() => {
-        return () => {
-            window.speechSynthesis?.cancel();
-            recognitionRef.current?.stop();
-        };
+        return () => { disconnectLive(); };
     }, []);
-
-    // Load available voices
-    useEffect(() => {
-        const loadVoices = () => {
-            const voices = window.speechSynthesis?.getVoices() || [];
-            setAvailableVoices(voices);
-        };
-        loadVoices();
-        window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
-        return () => window.speechSynthesis?.removeEventListener('voiceschanged', loadVoices);
-    }, []);
-
-    // Get voices for a specific language, sorted with cloud voices first
-    const getVoicesForLang = useCallback((langCode: string) => {
-        const langPrefix = langCode.split('-')[0];
-        return availableVoices
-            .filter(v => v.lang === langCode || v.lang.startsWith(langPrefix))
-            .sort((a, b) => {
-                // Cloud/remote voices first (usually higher quality)
-                if (!a.localService && b.localService) return -1;
-                if (a.localService && !b.localService) return 1;
-                // Google voices preferred
-                const aGoogle = a.name.toLowerCase().includes('google');
-                const bGoogle = b.name.toLowerCase().includes('google');
-                if (aGoogle && !bGoogle) return -1;
-                if (!aGoogle && bGoogle) return 1;
-                return a.name.localeCompare(b.name);
-            });
-    }, [availableVoices]);
 
     const getLanguageName = (code: string) => LANGUAGES.find(l => l.code === code)?.name || code;
+    const getLanguageHint = (code: string) => LANGUAGES.find(l => l.code === code)?.langHint || code;
 
     const swapLanguages = () => {
+        if (connectionState === ConnectionState.CONNECTED) {
+            // Disconnect and reconnect with swapped languages
+            disconnectLive();
+        }
         setSourceLang(targetLang);
         setTargetLang(sourceLang);
     };
 
-    // ========= TTS (Text-to-Speech) =========
-    const speakText = useCallback((text: string, langCode: string): Promise<void> => {
-        return new Promise((resolve) => {
-            if (!window.speechSynthesis) { resolve(); return; }
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = langCode;
-            utterance.rate = 0.92;
-            utterance.pitch = 1.0;
-
-            // Smart voice selection
-            const voices = window.speechSynthesis.getVoices();
-            const langPrefix = langCode.split('-')[0];
-
-            // 1. Check if user has a preferred voice for this language
-            const prefName = voicePrefs[langCode];
-            let selectedVoice = prefName ? voices.find(v => v.name === prefName) : null;
-
-            if (!selectedVoice) {
-                // 2. Find matching voices, prefer cloud/Google voices
-                const candidates = voices
-                    .filter(v => v.lang === langCode || v.lang.startsWith(langPrefix))
-                    .sort((a, b) => {
-                        if (!a.localService && b.localService) return -1;
-                        if (a.localService && !b.localService) return 1;
-                        const aG = a.name.toLowerCase().includes('google');
-                        const bG = b.name.toLowerCase().includes('google');
-                        if (aG && !bG) return -1;
-                        if (!aG && bG) return 1;
-                        return 0;
-                    });
-                selectedVoice = candidates[0] || null;
-            }
-
-            if (selectedVoice) utterance.voice = selectedVoice;
-            utterance.onend = () => resolve();
-            utterance.onerror = () => resolve();
-            window.speechSynthesis.speak(utterance);
-        });
-    }, [voicePrefs]);
-
-    const handleTTS = useCallback(async (entry: TranslationEntry, mode: TTSMode) => {
-        if (mode === 'off') return;
-        setIsSpeaking(true);
-        try {
-            if (mode === 'both') {
-                await speakText(entry.source, entry.sourceLangCode);
-                // Small pause between languages
-                await new Promise(r => setTimeout(r, 400));
-            }
-            await speakText(entry.translated, entry.targetLangCode);
-        } finally {
-            setIsSpeaking(false);
-        }
-    }, [speakText]);
-
-    // ========= Translation =========
-    const translateText = useCallback(async (text: string) => {
-        if (!text.trim() || isTranslatingRef.current) return;
-
+    const getApiKey = useCallback(() => {
         const keys = settings.apiKeys.gemini?.split(',').map(k => k.trim()).filter(Boolean) || [];
-        if (keys.length === 0) {
+        return keys[0] || '';
+    }, [settings]);
+
+    const buildSystemPrompt = useCallback(() => {
+        const srcName = getLanguageName(sourceLang);
+        const tgtName = getLanguageName(targetLang);
+        const tgtHint = getLanguageHint(targetLang);
+
+        return `你是一位專業的即時口譯員。
+
+## 任務
+使用者會用 ${srcName} 對你說話。你必須將他說的內容**即時翻譯成 ${tgtName} (${tgtHint})**。
+
+## 絕對規則
+1. **只回覆翻譯結果**。不要加任何解釋、評論、問候語或寒暄。
+2. **回覆必須完全使用 ${tgtName}**，不可夾雜其他語言。
+3. 保持原文的語氣、正式程度和情感。
+4. 如果使用者說「你好」或其他招呼語，直接翻譯成 ${tgtName} 的對應打招呼用語。
+5. 如果無法聽清使用者說的話，用 ${tgtName} 說「請再說一次」。
+6. 用口語化、自然的方式翻譯，因為你的回答會被直接朗讀出來。
+7. 不要使用任何 markdown 格式符號。
+8. 翻譯要簡潔精準，口語對話風格。`;
+    }, [sourceLang, targetLang]);
+
+    // --- Gemini Live Connection ---
+    const connectLive = useCallback(async () => {
+        const apiKey = getApiKey();
+        if (!apiKey) {
             setError('請先在系統設定中填入 Gemini API Key。');
             return;
         }
 
-        isTranslatingRef.current = true;
-        setIsTranslating(true);
-        setError(null);
-        setInputText('');
+        try {
+            setConnectionState(ConnectionState.CONNECTING);
+            setError(null);
 
-        const srcName = getLanguageName(sourceLang);
-        const tgtName = getLanguageName(targetLang);
-        const tgtLangHint = LANGUAGES.find(l => l.code === targetLang)?.langHint || targetLang;
+            const ai = new GoogleGenAI({ apiKey });
 
-        const prompt = `You are a professional translator.
-
-## CRITICAL RULE: 
-You MUST translate into ${tgtName} (${tgtLangHint}). 
-Do NOT translate into English or any other language. 
-The output MUST be written entirely in ${tgtName}.
-
-## Task:
-Translate the following text from ${srcName} into ${tgtName}.
-
-## Rules:
-- Output ONLY the translated text in ${tgtName}, nothing else.
-- Do NOT add any explanations, notes, or annotations.
-- Maintain the original tone and formality.
-- If it’s a greeting or short phrase, keep it natural in ${tgtName}.
-
-## Text to translate:
-${text}`;
-
-        let translated = '';
-        let success = false;
-
-        for (const key of keys) {
-            try {
-                const ai = new GoogleGenAI({ apiKey: key });
-                const response = await ai.models.generateContent({
-                    model: settings.geminiAnalysisModel || 'gemini-2.5-flash',
-                    contents: prompt,
-                });
-                translated = response.text?.trim() || '翻譯失敗';
-                success = true;
-                break;
-            } catch (err: any) {
-                if (err.message?.includes('429') || err.message?.includes('quota')) continue;
-                translated = `錯誤: ${err.message}`;
-                break;
+            // Setup audio
+            if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+                audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+            } else if (audioContextRef.current.state === 'suspended') {
+                await audioContextRef.current.resume();
             }
-        }
 
-        if (!success && !translated) {
-            translated = '所有 API Key 額度已耗盡，請新增更多 Key。';
-        }
+            mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    deviceId: settings.selectedMicrophoneId ? { exact: settings.selectedMicrophoneId } : undefined
+                }
+            });
 
-        const entry: TranslationEntry = {
-            id: Date.now().toString(),
-            source: text,
-            translated,
-            sourceLang: srcName,
-            targetLang: tgtName,
-            sourceLangCode: sourceLang,
-            targetLangCode: targetLang,
-        };
-        setHistory(prev => [...prev, entry]);
-        isTranslatingRef.current = false;
-        setIsTranslating(false);
+            const config = {
+                responseModalities: [Modality.AUDIO],
+                speechConfig: {
+                    voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } },
+                },
+                inputAudioTranscription: {},
+                outputAudioTranscription: {},
+                systemInstruction: buildSystemPrompt(),
+            };
 
-        // Auto TTS after translation
-        if (ttsModeRef.current !== 'off' && success) {
-            handleTTS(entry, ttsModeRef.current);
-        }
-    }, [settings, sourceLang, targetLang, handleTTS]);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        translateText(inputText);
-    };
-
-    // ========= Speech Recognition (Continuous + Single) =========
-    const startListening = useCallback(() => {
-        const SpeechRecognition = (window as unknown as IWindow).SpeechRecognition || (window as unknown as IWindow).webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert('您的瀏覽器不支援語音輸入功能。');
-            return;
-        }
-
-        const recognition = new SpeechRecognition();
-        recognition.lang = sourceLang;
-        recognition.continuous = false;
-        recognition.interimResults = false;
-
-        recognition.onstart = () => setIsListening(true);
-        recognition.onend = () => {
-            // In continuous mode, ALWAYS restart regardless of translation state
-            // Translation is async and doesn't block the microphone
-            if (continuousModeRef.current) {
-                setTimeout(() => {
-                    try {
-                        recognition.start();
-                    } catch (e) {
-                        setIsListening(false);
+            const sessionPromise = ai.live.connect({
+                model: settings.geminiLiveModel || 'gemini-2.5-flash-native-audio-preview-12-2025',
+                config: config,
+                callbacks: {
+                    onopen: async () => {
+                        setConnectionState(ConnectionState.CONNECTED);
+                        activeRef.current = true;
+                        try {
+                            sessionRef.current = await sessionPromise;
+                        } catch (e) {
+                            console.error('[TranslatorLive] Failed to capture session:', e);
+                        }
+                        startAudioStreaming(sessionPromise, mediaStreamRef.current!);
+                    },
+                    onmessage: async (message: LiveServerMessage) => {
+                        handleLiveMessage(message);
+                    },
+                    onclose: (e: CloseEvent) => {
+                        console.warn(`[TranslatorLive] Closed. Code: ${e.code}`);
+                        activeRef.current = false;
+                        setConnectionState(ConnectionState.DISCONNECTED);
+                    },
+                    onerror: (err: any) => {
+                        const errMsg = err?.message || err?.toString() || 'Unknown error';
+                        console.error('[TranslatorLive] Error:', errMsg);
+                        setConnectionState(ConnectionState.ERROR);
+                        setError(`連線錯誤: ${errMsg}`);
+                        cleanupAudio();
                     }
-                }, 300);
-            } else {
-                setIsListening(false);
+                }
+            });
+
+            await sessionPromise;
+
+        } catch (error: any) {
+            console.error('[TranslatorLive] Connect failed:', error);
+            setConnectionState(ConnectionState.ERROR);
+            setError(`無法連線: ${error.message}`);
+            cleanupAudio();
+        }
+    }, [getApiKey, settings, selectedVoice, buildSystemPrompt]);
+
+    const startAudioStreaming = useCallback((sessionPromise: Promise<any>, stream: MediaStream) => {
+        if (!audioContextRef.current) return;
+
+        sourceNodeRef.current = audioContextRef.current.createMediaStreamSource(stream);
+        scriptProcessorRef.current = audioContextRef.current.createScriptProcessor(4096, 1, 1);
+
+        scriptProcessorRef.current.onaudioprocess = (e) => {
+            if (!activeRef.current) return;
+
+            const inputData = e.inputBuffer.getChannelData(0);
+            const inputSampleRate = audioContextRef.current?.sampleRate || 16000;
+            const downsampledData = downsampleBuffer(inputData, inputSampleRate, 16000);
+
+            // Noise gate
+            let sum = 0;
+            for (let i = 0; i < downsampledData.length; i++) {
+                sum += downsampledData[i] * downsampledData[i];
             }
-        };
-        recognition.onresult = (event: any) => {
-            const transcript = event.results[0][0].transcript;
-            if (transcript) {
-                translateText(transcript);
+            const rms = Math.sqrt(sum / downsampledData.length);
+            const threshold = settings.noiseThreshold ?? 0.002;
+
+            let processedData = downsampledData;
+            if (rms < threshold) {
+                processedData = new Float32Array(downsampledData.length);
             }
-        };
-        recognition.onerror = (e: any) => {
-            if (e.error === 'no-speech' && continuousModeRef.current) {
-                // No speech detected, retry in continuous mode
-                return;
-            }
-            setIsListening(false);
+
+            const pcmBlob = createPcmBlob(processedData);
+            sessionPromise.then((session) => {
+                if (activeRef.current) {
+                    session.sendRealtimeInput({ media: pcmBlob });
+                }
+            });
         };
 
-        recognitionRef.current = recognition;
-        recognition.start();
-    }, [sourceLang, translateText]);
+        sourceNodeRef.current.connect(scriptProcessorRef.current);
+        scriptProcessorRef.current.connect(audioContextRef.current.destination);
+    }, [settings.noiseThreshold]);
 
-    const stopListening = useCallback(() => {
-        recognitionRef.current?.stop();
-        setIsListening(false);
+    const handleLiveMessage = useCallback((message: LiveServerMessage) => {
+        if (!audioContextRef.current) return;
+
+        // Input transcription (user speech = source language)
+        if (message.serverContent?.inputTranscription) {
+            const text = message.serverContent.inputTranscription.text;
+            currentInputRef.current += text;
+            setPartialInput(currentInputRef.current);
+        }
+
+        // Output transcription (AI speech = translated text)
+        if (message.serverContent?.outputTranscription) {
+            const text = message.serverContent.outputTranscription.text;
+            currentOutputRef.current += text;
+            setPartialOutput(currentOutputRef.current);
+        }
+
+        // Turn complete — save to history
+        if (message.serverContent?.turnComplete) {
+            const inputText = currentInputRef.current.trim();
+            const outputText = currentOutputRef.current.trim();
+
+            if (inputText || outputText) {
+                const entry: TranslationEntry = {
+                    id: Date.now().toString(),
+                    source: inputText || '...',
+                    translated: outputText || '(翻譯中...)',
+                    sourceLang: getLanguageName(sourceLangRef.current),
+                    targetLang: getLanguageName(targetLangRef.current),
+                };
+                setHistory(prev => [...prev, entry]);
+            }
+
+            currentInputRef.current = '';
+            currentOutputRef.current = '';
+            setPartialInput('');
+            setPartialOutput('');
+        }
+
+        // Play audio
+        const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+        if (base64Audio && audioContextRef.current) {
+            const ctx = audioContextRef.current;
+            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
+
+            const audioBytes = base64ToBytes(base64Audio);
+            decodeAudioData(audioBytes, ctx, 24000, 1).then(audioBuffer => {
+                if (!activeRef.current) return;
+                const source = ctx.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(ctx.destination);
+                source.addEventListener('ended', () => audioSourcesRef.current.delete(source));
+                source.start(nextStartTimeRef.current);
+                nextStartTimeRef.current += audioBuffer.duration;
+                audioSourcesRef.current.add(source);
+            });
+        }
+
+        // Interrupted
+        if (message.serverContent?.interrupted) {
+            audioSourcesRef.current.forEach(source => { try { source.stop(); } catch {} });
+            audioSourcesRef.current.clear();
+            nextStartTimeRef.current = 0;
+            currentOutputRef.current = '';
+            setPartialOutput('');
+        }
     }, []);
 
-    const toggleListening = () => {
-        if (isListening) {
-            // If in continuous mode, also turn it off
-            if (continuousMode) {
-                setContinuousMode(false);
-            }
-            stopListening();
-        } else {
-            startListening();
+    const cleanupAudio = useCallback(() => {
+        mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+        sourceNodeRef.current?.disconnect();
+        scriptProcessorRef.current?.disconnect();
+        audioSourcesRef.current.forEach(s => { try { s.stop(); } catch {} });
+        audioSourcesRef.current.clear();
+        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+            audioContextRef.current.close().catch(() => {});
         }
-    };
+        mediaStreamRef.current = null;
+        sourceNodeRef.current = null;
+        scriptProcessorRef.current = null;
+        audioContextRef.current = null;
+        nextStartTimeRef.current = 0;
+    }, []);
 
-    // When continuous mode is toggled ON, auto-start listening
-    useEffect(() => {
-        if (continuousMode && !isListening) {
-            startListening();
-        } else if (!continuousMode && isListening) {
-            stopListening();
+    const disconnectLive = useCallback(() => {
+        activeRef.current = false;
+        sessionRef.current = null;
+        cleanupAudio();
+        setConnectionState(ConnectionState.DISCONNECTED);
+        setPartialInput('');
+        setPartialOutput('');
+    }, [cleanupAudio]);
+
+    const toggleConnection = useCallback(() => {
+        if (connectionState === ConnectionState.CONNECTED || connectionState === ConnectionState.CONNECTING) {
+            disconnectLive();
+        } else {
+            connectLive();
         }
-    }, [continuousMode]);
+    }, [connectionState, connectLive, disconnectLive]);
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -339,24 +352,8 @@ ${text}`;
 
     const clearHistory = () => setHistory([]);
 
-    // Stop everything: TTS, listening, continuous mode, translation state
-    const handleStopAll = () => {
-        window.speechSynthesis?.cancel();
-        setIsSpeaking(false);
-        recognitionRef.current?.stop();
-        setIsListening(false);
-        setContinuousMode(false);
-        isTranslatingRef.current = false;
-        setIsTranslating(false);
-    };
-
-    // Manual TTS replay for individual entry
-    const replayTTS = (entry: TranslationEntry, mode: 'source' | 'target') => {
-        window.speechSynthesis?.cancel();
-        const langCode = mode === 'source' ? entry.sourceLangCode : entry.targetLangCode;
-        const text = mode === 'source' ? entry.source : entry.translated;
-        speakText(text, langCode);
-    };
+    const isConnected = connectionState === ConnectionState.CONNECTED;
+    const isConnecting = connectionState === ConnectionState.CONNECTING;
 
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden relative">
@@ -370,28 +367,19 @@ ${text}`;
             <div className="shrink-0 px-4 sm:px-6 py-3 border-b border-zinc-800/50 z-10 bg-background/80 backdrop-blur-sm pl-14 md:pl-4">
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+                        <div className={`p-2 rounded-xl ${isConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
                         </div>
                         <div>
-                            <h2 className="text-base font-bold text-zinc-100">即時雙語翻譯</h2>
+                            <h2 className="text-base font-bold text-zinc-100">即時語音翻譯</h2>
                             <p className="text-[0.65rem] text-zinc-500">
-                                {continuousMode ? '🔴 持續翻譯模式運行中' : '語音或文字輸入，AI 即時翻譯'}
+                                {isConnected ? '🟢 即時翻譯中 — 請對著麥克風說話' :
+                                 isConnecting ? '🟡 正在連線...' :
+                                 '🎙️ Gemini AI 即時語音翻譯'}
                             </p>
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        {/* Stop Button - visible when active */}
-                        {(isTranslating || isListening || isSpeaking || continuousMode) && (
-                            <button
-                                onClick={handleStopAll}
-                                className="px-3 py-1.5 text-[0.65rem] bg-red-600/20 text-red-300 rounded-lg hover:bg-red-600/40 transition-all border border-red-500/30 flex items-center gap-1.5 animate-pulse"
-                                title="停止所有翻譯活動"
-                            >
-                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" /></svg>
-                                停止
-                            </button>
-                        )}
                         {/* Settings Toggle */}
                         <button
                             onClick={() => setShowSettings(!showSettings)}
@@ -413,77 +401,28 @@ ${text}`;
                 {/* Settings Panel (Collapsible) */}
                 {showSettings && (
                     <div className="mb-3 p-3 bg-zinc-900/80 border border-zinc-700/50 rounded-xl space-y-3 animate-fade-in-up">
-                        {/* Continuous Mode Toggle */}
+                        {/* Voice Selection */}
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-zinc-400">🔄 持續翻譯模式</span>
-                                <span className="text-[0.6rem] text-zinc-600">(自動持續聆聽)</span>
-                            </div>
-                            <button
-                                onClick={() => setContinuousMode(!continuousMode)}
-                                className={`relative w-11 h-6 rounded-full transition-colors ${continuousMode ? 'bg-emerald-500' : 'bg-zinc-700'}`}
-                            >
-                                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform ${continuousMode ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
-                            </button>
-                        </div>
-
-                        {/* TTS Mode */}
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-zinc-400">🔊 語音朗讀</span>
-                            </div>
-                            <div className="flex gap-1">
-                                {([
-                                    { value: 'off' as TTSMode, label: '關閉', icon: '🔇' },
-                                    { value: 'target' as TTSMode, label: '單向', icon: '🔈' },
-                                    { value: 'both' as TTSMode, label: '雙向', icon: '🔊' },
-                                ]).map(opt => (
+                            <span className="text-xs text-zinc-400">🎙️ AI 語音角色</span>
+                            <div className="flex gap-1 flex-wrap justify-end">
+                                {GEMINI_VOICES.map(v => (
                                     <button
-                                        key={opt.value}
-                                        onClick={() => setTtsMode(opt.value)}
-                                        className={`px-2.5 py-1 text-[0.65rem] rounded-lg border transition-all ${
-                                            ttsMode === opt.value
+                                        key={v.name}
+                                        onClick={() => setSelectedVoice(v.name)}
+                                        className={`px-2 py-1 text-[0.6rem] rounded-lg border transition-all ${
+                                            selectedVoice === v.name
                                                 ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
                                                 : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'
                                         }`}
                                     >
-                                        {opt.icon} {opt.label}
+                                        {v.label} ({v.gender})
                                     </button>
                                 ))}
                             </div>
                         </div>
-                        {ttsMode !== 'off' && (
-                            <>
-                            <p className="text-[0.6rem] text-zinc-600 pl-1">
-                                {ttsMode === 'target' ? '📌 翻譯完成後自動朗讀目標語言' : '📌 翻譯完成後先朗讀原文，再朗讀譯文'}
-                            </p>
-                            {/* Voice Picker per language */}
-                            <div className="space-y-2 mt-1">
-                                {[sourceLang, targetLang].filter((v, i, a) => a.indexOf(v) === i).map(langCode => {
-                                    const langVoices = getVoicesForLang(langCode);
-                                    const langName = getLanguageName(langCode);
-                                    if (langVoices.length === 0) return null;
-                                    return (
-                                        <div key={langCode} className="flex items-center gap-2">
-                                            <span className="text-[0.6rem] text-zinc-500 min-w-[60px] shrink-0">{langName}</span>
-                                            <select
-                                                value={voicePrefs[langCode] || ''}
-                                                onChange={(e) => setVoicePrefs(prev => ({ ...prev, [langCode]: e.target.value }))}
-                                                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-[0.6rem] text-zinc-300 focus:outline-none focus:border-emerald-500 min-w-0"
-                                            >
-                                                <option value="">自動選擇 (最佳品質)</option>
-                                                {langVoices.map(v => (
-                                                    <option key={v.name} value={v.name}>
-                                                        {v.name} {!v.localService ? '☁️' : '📱'}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            </>
-                        )}
+                        <p className="text-[0.6rem] text-zinc-600 pl-1">
+                            ⚠️ 切換語音需重新連線才會生效
+                        </p>
                     </div>
                 )}
 
@@ -491,7 +430,10 @@ ${text}`;
                 <div className="flex items-center gap-2 justify-center">
                     <select
                         value={sourceLang}
-                        onChange={(e) => setSourceLang(e.target.value)}
+                        onChange={(e) => {
+                            if (isConnected) disconnectLive();
+                            setSourceLang(e.target.value);
+                        }}
                         className="bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500 transition-colors flex-1 min-w-0"
                     >
                         {LANGUAGES.map(l => (
@@ -509,7 +451,10 @@ ${text}`;
 
                     <select
                         value={targetLang}
-                        onChange={(e) => setTargetLang(e.target.value)}
+                        onChange={(e) => {
+                            if (isConnected) disconnectLive();
+                            setTargetLang(e.target.value);
+                        }}
                         className="bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500 transition-colors flex-1 min-w-0"
                     >
                         {LANGUAGES.map(l => (
@@ -521,12 +466,16 @@ ${text}`;
 
             {/* Translation History */}
             <div ref={historyContainerRef} className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-3 custom-scrollbar z-10">
-                {history.length === 0 && !isTranslating ? (
+                {history.length === 0 && !partialInput && !partialOutput ? (
                     <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4">
                         <svg className="w-16 h-16 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
-                        <p className="text-sm">輸入文字或點擊麥克風開始翻譯</p>
-                        <p className="text-xs text-zinc-600">支援 中/英/日/韓/越 即時互譯</p>
-                        <p className="text-[0.65rem] text-zinc-700 mt-2">💡 點擊 ⚙ 設定 → 開啟「持續翻譯」與「語音朗讀」</p>
+                        <p className="text-sm">點擊下方麥克風開始即時語音翻譯</p>
+                        <p className="text-xs text-zinc-600">使用 Gemini AI 即時口譯，說話即翻譯</p>
+                        <div className="flex flex-wrap gap-2 justify-center mt-2">
+                            <span className="text-[0.65rem] bg-zinc-800/80 border border-zinc-700/50 px-2.5 py-1 rounded-full text-zinc-500">🎙️ 語音輸入</span>
+                            <span className="text-[0.65rem] bg-zinc-800/80 border border-zinc-700/50 px-2.5 py-1 rounded-full text-zinc-500">🔊 AI 語音輸出</span>
+                            <span className="text-[0.65rem] bg-zinc-800/80 border border-zinc-700/50 px-2.5 py-1 rounded-full text-zinc-500">📝 即時文字顯示</span>
+                        </div>
                     </div>
                 ) : (
                     <>
@@ -536,14 +485,9 @@ ${text}`;
                                 <div className="px-4 py-3 border-b border-zinc-800/50">
                                     <div className="flex items-center justify-between mb-1.5">
                                         <span className="text-[0.65rem] font-medium text-zinc-500">{entry.sourceLang}</span>
-                                        <div className="flex items-center gap-1">
-                                            <button onClick={() => replayTTS(entry, 'source')} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1" title="朗讀原文">
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
-                                            </button>
-                                            <button onClick={() => copyToClipboard(entry.source)} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1" title="複製原文">
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                                            </button>
-                                        </div>
+                                        <button onClick={() => copyToClipboard(entry.source)} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1" title="複製原文">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                        </button>
                                     </div>
                                     <p className="text-zinc-300 text-sm leading-relaxed">{entry.source}</p>
                                 </div>
@@ -551,28 +495,42 @@ ${text}`;
                                 <div className="px-4 py-3 bg-emerald-500/5">
                                     <div className="flex items-center justify-between mb-1.5">
                                         <span className="text-[0.65rem] font-medium text-emerald-400">{entry.targetLang}</span>
-                                        <div className="flex items-center gap-1">
-                                            <button onClick={() => replayTTS(entry, 'target')} className="text-zinc-600 hover:text-emerald-300 transition-colors p-1" title="朗讀翻譯">
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
-                                            </button>
-                                            <button onClick={() => copyToClipboard(entry.translated)} className="text-zinc-600 hover:text-emerald-300 transition-colors p-1" title="複製翻譯">
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                                            </button>
-                                        </div>
+                                        <button onClick={() => copyToClipboard(entry.translated)} className="text-zinc-600 hover:text-emerald-300 transition-colors p-1" title="複製翻譯">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                        </button>
                                     </div>
                                     <p className="text-emerald-100 text-sm leading-relaxed font-medium">{entry.translated}</p>
                                 </div>
                             </div>
                         ))}
-                        {isTranslating && (
-                            <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl px-5 py-5 text-center">
-                                <div className="flex items-center justify-center gap-2 text-emerald-400">
-                                    <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                    <span className="text-sm">翻譯中...</span>
-                                </div>
+
+                        {/* Partial Transcription (Real-time) */}
+                        {(partialInput || partialOutput) && (
+                            <div className="bg-zinc-900/60 border border-emerald-500/30 rounded-2xl overflow-hidden backdrop-blur-sm animate-fade-in-up shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                                {partialInput && (
+                                    <div className="px-4 py-3 border-b border-zinc-800/50">
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                                            <span className="text-[0.65rem] font-medium text-zinc-500">{getLanguageName(sourceLang)} (辨識中...)</span>
+                                        </div>
+                                        <p className="text-zinc-300 text-sm leading-relaxed italic">{partialInput}</p>
+                                    </div>
+                                )}
+                                {partialOutput && (
+                                    <div className="px-4 py-3 bg-emerald-500/5">
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <div className="flex gap-0.5">
+                                                <div className="w-1 h-3 bg-emerald-400 rounded-full animate-pulse" style={{animationDelay: '0ms'}}></div>
+                                                <div className="w-1 h-4 bg-emerald-400 rounded-full animate-pulse" style={{animationDelay: '150ms'}}></div>
+                                                <div className="w-1 h-3 bg-emerald-400 rounded-full animate-pulse" style={{animationDelay: '300ms'}}></div>
+                                            </div>
+                                            <span className="text-[0.65rem] font-medium text-emerald-400">{getLanguageName(targetLang)} (翻譯中...)</span>
+                                        </div>
+                                        <p className="text-emerald-100 text-sm leading-relaxed font-medium italic">{partialOutput}</p>
+                                    </div>
+                                )}
                             </div>
                         )}
-
                     </>
                 )}
             </div>
@@ -584,70 +542,50 @@ ${text}`;
                 </div>
             )}
 
-            {/* Speaking Indicator */}
-            {isSpeaking && (
-                <div className="mx-4 sm:mx-6 mb-2 p-2 bg-emerald-900/30 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs flex items-center justify-center gap-2 z-10">
-                    <div className="flex gap-0.5">
-                        <div className="w-1 h-3 bg-emerald-400 rounded-full animate-pulse" style={{animationDelay: '0ms'}}></div>
-                        <div className="w-1 h-4 bg-emerald-400 rounded-full animate-pulse" style={{animationDelay: '150ms'}}></div>
-                        <div className="w-1 h-3 bg-emerald-400 rounded-full animate-pulse" style={{animationDelay: '300ms'}}></div>
-                    </div>
-                    語音朗讀中...
-                </div>
-            )}
-
-            {/* Input Bar */}
-            <form onSubmit={handleSubmit} className="shrink-0 px-4 sm:px-6 py-3 pb-8 md:py-3 border-t border-zinc-800/50 z-10 bg-background/80 backdrop-blur-sm">
-                {/* Continuous mode status bar */}
-                {continuousMode && (
-                    <div className="mb-2 flex items-center justify-between bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-1.5">
-                        <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                            <span className="text-[0.65rem] text-emerald-300">持續翻譯中 — 請直接說話</span>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setContinuousMode(false)}
-                            className="text-[0.65rem] text-zinc-400 hover:text-red-400 transition-colors px-2 py-0.5 rounded bg-zinc-800/50"
-                        >
-                            停止
-                        </button>
-                    </div>
-                )}
-                <div className="relative flex items-center">
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={inputText}
-                        onChange={(e) => setInputText(e.target.value)}
-                        placeholder={continuousMode ? "持續翻譯模式中，也可手動輸入..." : isListening ? "正在聆聽中..." : "輸入要翻譯的文字..."}
-                        disabled={isTranslating}
-                        className={`w-full bg-zinc-900 border ${isListening ? 'border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-zinc-700'} rounded-xl pl-12 pr-12 py-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-sm disabled:opacity-50 text-sm`}
-                    />
+            {/* Bottom Control Bar */}
+            <div className="shrink-0 px-4 sm:px-6 py-4 pb-8 md:py-4 border-t border-zinc-800/50 z-10 bg-background/80 backdrop-blur-sm">
+                <div className="flex items-center justify-center gap-4">
+                    {/* Mic Button */}
                     <button
-                        type="button"
-                        onClick={toggleListening}
-                        disabled={isTranslating}
-                        className={`absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all ${isListening
-                            ? 'text-emerald-500 hover:bg-emerald-500/10 animate-pulse'
-                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
-                            }`}
+                        onClick={toggleConnection}
+                        className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl ${
+                            isConnected
+                                ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/30 scale-110'
+                                : isConnecting
+                                    ? 'bg-yellow-500/80 text-white shadow-yellow-500/20 animate-pulse'
+                                    : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/30 hover:scale-105'
+                        }`}
                     >
-                        {isListening ? (
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 2.34 9 4v6c0 1.66 1.34 3 3 3z" /><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" /></svg>
+                        {/* Pulse rings when connected */}
+                        {isConnected && (
+                            <>
+                                <span className="absolute inset-0 rounded-full border-2 border-red-400 animate-ping opacity-30"></span>
+                                <span className="absolute -inset-2 rounded-full border border-red-400/20 animate-pulse"></span>
+                            </>
+                        )}
+                        {isConnecting ? (
+                            <svg className="animate-spin w-7 h-7" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        ) : isConnected ? (
+                            <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
                         ) : (
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
                         )}
                     </button>
-                    <button
-                        type="submit"
-                        disabled={!inputText.trim() || isTranslating}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                    </button>
                 </div>
-            </form>
+
+                {/* Status Text */}
+                <p className="text-center text-[0.65rem] text-zinc-500 mt-2">
+                    {isConnected
+                        ? `🔴 翻譯中 · ${getLanguageName(sourceLang)} → ${getLanguageName(targetLang)} · 點擊停止`
+                        : isConnecting
+                            ? '正在建立 AI 翻譯連線...'
+                            : `點擊開始 · ${getLanguageName(sourceLang)} → ${getLanguageName(targetLang)}`
+                    }
+                </p>
+            </div>
         </div>
     );
 };
