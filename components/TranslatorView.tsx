@@ -38,6 +38,8 @@ const TranslatorView: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [showSettings, setShowSettings] = useState(false);
     const [selectedVoice, setSelectedVoice] = useState(settings.geminiVoice || 'Kore');
+    const [inputText, setInputText] = useState('');
+    const [isTranslating, setIsTranslating] = useState(false);
 
     // Live connection state
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.DISCONNECTED);
@@ -336,6 +338,83 @@ const TranslatorView: React.FC = () => {
         }
     }, [connectionState, connectLive, disconnectLive]);
 
+    // --- Text-based translation (REST fallback when not in live mode) ---
+    const translateText = useCallback(async (text: string) => {
+        if (!text.trim() || isTranslating) return;
+
+        const keys = settings.apiKeys.gemini?.split(',').map(k => k.trim()).filter(Boolean) || [];
+        if (keys.length === 0) {
+            setError('請先在系統設定中填入 Gemini API Key。');
+            return;
+        }
+
+        setIsTranslating(true);
+        setError(null);
+        setInputText('');
+
+        const srcName = getLanguageName(sourceLang);
+        const tgtName = getLanguageName(targetLang);
+        const tgtHint = getLanguageHint(targetLang);
+
+        const prompt = `You are a professional translator.\n\n## CRITICAL RULE:\nYou MUST translate into ${tgtName} (${tgtHint}).\nDo NOT translate into English or any other language.\nThe output MUST be written entirely in ${tgtName}.\n\n## Task:\nTranslate the following text from ${srcName} into ${tgtName}.\n\n## Rules:\n- Output ONLY the translated text in ${tgtName}, nothing else.\n- Do NOT add any explanations, notes, or annotations.\n- Maintain the original tone and formality.\n\n## Text to translate:\n${text}`;
+
+        let translated = '';
+        let success = false;
+
+        for (const key of keys) {
+            try {
+                const ai = new GoogleGenAI({ apiKey: key });
+                const response = await ai.models.generateContent({
+                    model: settings.geminiAnalysisModel || 'gemini-2.5-flash',
+                    contents: prompt,
+                });
+                translated = response.text?.trim() || '翻譯失敗';
+                success = true;
+                break;
+            } catch (err: any) {
+                if (err.message?.includes('429') || err.message?.includes('quota')) continue;
+                translated = `錯誤: ${err.message}`;
+                break;
+            }
+        }
+
+        if (!success && !translated) {
+            translated = '所有 API Key 額度已耗盡，請新增更多 Key。';
+        }
+
+        const entry: TranslationEntry = {
+            id: Date.now().toString(),
+            source: text,
+            translated,
+            sourceLang: srcName,
+            targetLang: tgtName,
+        };
+        setHistory(prev => [...prev, entry]);
+        setIsTranslating(false);
+    }, [settings, sourceLang, targetLang, isTranslating]);
+
+    // Send text through Live session
+    const sendTextToLive = useCallback((text: string) => {
+        if (!text.trim()) return;
+        if (activeRef.current && sessionRef.current) {
+            sessionRef.current.sendClientContent({
+                turns: [{ role: 'user', parts: [{ text: `請翻譯：${text}` }] }],
+                turnComplete: true,
+            });
+            setInputText('');
+        }
+    }, []);
+
+    const handleTextSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!inputText.trim()) return;
+        if (isConnected) {
+            sendTextToLive(inputText);
+        } else {
+            translateText(inputText);
+        }
+    };
+
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
     };
@@ -543,49 +622,67 @@ const TranslatorView: React.FC = () => {
             )}
 
             {/* Bottom Control Bar */}
-            <div className="shrink-0 px-4 sm:px-6 py-4 pb-8 md:py-4 border-t border-zinc-800/50 z-10 bg-background/80 backdrop-blur-sm">
-                <div className="flex items-center justify-center gap-4">
-                    {/* Mic Button */}
+            <form onSubmit={handleTextSubmit} className="shrink-0 px-4 sm:px-6 py-3 pb-8 md:py-3 border-t border-zinc-800/50 z-10 bg-background/80 backdrop-blur-sm">
+                {/* Status Bar when connected */}
+                {isConnected && (
+                    <div className="mb-2 flex items-center justify-between bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-1.5">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                            <span className="text-[0.65rem] text-emerald-300">即時語音翻譯中 · {getLanguageName(sourceLang)} → {getLanguageName(targetLang)}</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={disconnectLive}
+                            className="text-[0.65rem] text-zinc-400 hover:text-red-400 transition-colors px-2 py-0.5 rounded bg-zinc-800/50"
+                        >
+                            停止
+                        </button>
+                    </div>
+                )}
+                <div className="relative flex items-center">
+                    {/* Mic / Live Toggle Button */}
                     <button
+                        type="button"
                         onClick={toggleConnection}
-                        className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl ${
+                        disabled={isTranslating}
+                        className={`absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all z-10 ${
                             isConnected
-                                ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/30 scale-110'
+                                ? 'text-red-500 hover:bg-red-500/10 animate-pulse'
                                 : isConnecting
-                                    ? 'bg-yellow-500/80 text-white shadow-yellow-500/20 animate-pulse'
-                                    : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/30 hover:scale-105'
+                                    ? 'text-yellow-500 animate-pulse'
+                                    : 'text-zinc-500 hover:text-emerald-400 hover:bg-zinc-800'
                         }`}
+                        title={isConnected ? '停止語音翻譯' : '開始語音翻譯'}
                     >
-                        {/* Pulse rings when connected */}
-                        {isConnected && (
-                            <>
-                                <span className="absolute inset-0 rounded-full border-2 border-red-400 animate-ping opacity-30"></span>
-                                <span className="absolute -inset-2 rounded-full border border-red-400/20 animate-pulse"></span>
-                            </>
-                        )}
                         {isConnecting ? (
-                            <svg className="animate-spin w-7 h-7" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
+                            <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         ) : isConnected ? (
-                            <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 2.34 9 4v6c0 1.66 1.34 3 3 3z" /><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" /></svg>
                         ) : (
-                            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                        )}
+                    </button>
+                    <input
+                        type="text"
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        placeholder={isConnected ? '語音翻譯中，也可輸入文字...' : isConnecting ? '正在連線...' : '輸入文字翻譯，或按左側🎙️語音翻譯'}
+                        disabled={isTranslating || isConnecting}
+                        className={`w-full bg-zinc-900 border ${isConnected ? 'border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-zinc-700'} rounded-xl pl-12 pr-12 py-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-sm disabled:opacity-50 text-sm`}
+                    />
+                    <button
+                        type="submit"
+                        disabled={!inputText.trim() || isTranslating || isConnecting}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isTranslating ? (
+                            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        ) : (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                         )}
                     </button>
                 </div>
-
-                {/* Status Text */}
-                <p className="text-center text-[0.65rem] text-zinc-500 mt-2">
-                    {isConnected
-                        ? `🔴 翻譯中 · ${getLanguageName(sourceLang)} → ${getLanguageName(targetLang)} · 點擊停止`
-                        : isConnecting
-                            ? '正在建立 AI 翻譯連線...'
-                            : `點擊開始 · ${getLanguageName(sourceLang)} → ${getLanguageName(targetLang)}`
-                    }
-                </p>
-            </div>
+            </form>
         </div>
     );
 };
