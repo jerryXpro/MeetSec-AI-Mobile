@@ -3,6 +3,7 @@ import { useApp } from '../contexts/AppContext';
 import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
 import { createPcmBlob, base64ToBytes, decodeAudioData, downsampleBuffer } from '../utils/audioUtils';
 import { ConnectionState } from '../types';
+import { useWakeLock } from '../hooks/useWakeLock';
 
 interface ChatMessage {
     id: string;
@@ -49,6 +50,7 @@ const SYSTEM_PROMPT = `你是一位叫做「小家人」的 AI 夥伴。你就�
 
 const ChatView: React.FC = () => {
     const { settings } = useApp();
+    const { requestWakeLock, releaseWakeLock } = useWakeLock();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -110,6 +112,7 @@ const ChatView: React.FC = () => {
         try {
             setConnectionState(ConnectionState.CONNECTING);
             setShowSuggestions(false);
+            requestWakeLock();
 
             const ai = new GoogleGenAI({ apiKey });
 
@@ -352,7 +355,8 @@ const ChatView: React.FC = () => {
         sessionRef.current = null;
         cleanupAudio();
         setConnectionState(ConnectionState.DISCONNECTED);
-    }, [cleanupAudio]);
+        releaseWakeLock();
+    }, [cleanupAudio, releaseWakeLock]);
 
     const toggleConnection = useCallback(() => {
         if (connectionState === ConnectionState.CONNECTED || connectionState === ConnectionState.CONNECTING) {

@@ -4,6 +4,7 @@ import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
 import { createPcmBlob, base64ToBytes, decodeAudioData, downsampleBuffer } from '../utils/audioUtils';
 import { ConnectionState } from '../types';
 import { downloadAsWord, downloadAsPDF } from '../utils/downloadUtils';
+import { useWakeLock } from '../hooks/useWakeLock';
 
 interface TranslationEntry {
     id: string;
@@ -32,6 +33,7 @@ const GEMINI_VOICES = [
 
 const TranslatorView: React.FC = () => {
     const { settings } = useApp();
+    const { requestWakeLock, releaseWakeLock } = useWakeLock();
     const [sourceLang, setSourceLang] = useState('zh-TW');
     const [targetLang, setTargetLang] = useState('en-US');
     const [history, setHistory] = useState<TranslationEntry[]>([]);
@@ -188,6 +190,7 @@ const TranslatorView: React.FC = () => {
         try {
             setConnectionState(ConnectionState.CONNECTING);
             setError(null);
+            requestWakeLock();
 
             const ai = new GoogleGenAI({ apiKey });
 
@@ -386,7 +389,8 @@ const TranslatorView: React.FC = () => {
         setConnectionState(ConnectionState.DISCONNECTED);
         setPartialInput('');
         setPartialOutput('');
-    }, [cleanupAudio]);
+        releaseWakeLock();
+    }, [cleanupAudio, releaseWakeLock]);
 
     const toggleConnection = useCallback(() => {
         if (connectionState === ConnectionState.CONNECTED || connectionState === ConnectionState.CONNECTING) {

@@ -4,9 +4,11 @@ import { GeminiLiveService } from '../services/geminiLive.ts';
 import { transcribeAudioFile } from '../services/fileUploadService';
 import { useApp } from './AppContext';
 import { LiveContext } from './LiveContextCore';
+import { useWakeLock } from '../hooks/useWakeLock';
 
 export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { settings, saveMeeting, profiles } = useApp();
+  const { requestWakeLock, releaseWakeLock } = useWakeLock();
   const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.DISCONNECTED);
   const [messages, setMessages] = useState<Message[]>([]);
   const [volume, setVolume] = useState(0);
@@ -143,6 +145,9 @@ export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setFullAudioUrl(null);
     }
 
+    // 防止螢幕關閉
+    requestWakeLock();
+
     const activeProfile = profiles.find(p => p.id === settings.currentProfileId);
 
     let aggregatedContext = "";
@@ -259,6 +264,7 @@ export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await serviceRef.current?.stop();
     setConnectionState(ConnectionState.DISCONNECTED);
     setIsMuted(false);
+    releaseWakeLock();
   };
 
   const uploadFile = async (file: File) => {
