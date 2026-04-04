@@ -22,7 +22,8 @@
 12. [API Key 管理與配額策略](#12-api-key-管理與配額策略)
 13. [手機版操作指南](#13-手機版操作指南)
 14. [常見問題排除 (FAQ)](#14-常見問題排除-faq)
-15. [附錄：版本更新紀錄](#15-附錄版本更新紀錄)
+15. [行動 APP 開發路線圖](#15-行動-app-開發路線圖)
+16. [附錄：版本更新紀錄](#16-附錄版本更新紀錄)
 
 ---
 
@@ -773,7 +774,116 @@ v2.3 新增了**螢幕保持常亮**功能：
 
 ---
 
-## 15. 附錄：版本更新紀錄
+## 15. 行動 APP 開發路線圖
+
+> 本章描述將 MeetSec-AI 從網頁版轉換為原生手機 APP 的可行性與執行路線。
+
+### 現狀評估
+
+MeetSec-AI 目前是純前端 SPA（React + TypeScript + Vite），無後端伺服器。這種架構**非常適合轉換為原生 APP**，因為：
+- 程式碼改動量極少（< 5%）
+- 所有核心功能（WebSocket、Web Audio API）在 WebView 中正常運作
+- 不需要重宫 UI
+
+### 階段 1：PWA（Progressive Web App）
+
+> **零成本、零風險、立即可執行。**
+
+PWA 讓使用者在手機瀏覽器點「加到主螢幕」→ 看起來跟 APP 一模一樣。
+
+**需要新增的檔案：**
+- `public/manifest.json` — APP 名稱、圖示、主題色
+- `public/sw.js` — Service Worker（離線快取）
+- `public/icon-192.png` + `public/icon-512.png` — APP 圖示
+
+**PWA 各平台支援程度：**
+
+| 功能 | Android | iOS Safari |
+|------|---------|------------|
+| 安裝到桌面 | ✅ | ✅ |
+| 全螢幕 | ✅ | ✅ |
+| 麥克風 | ✅ | ✅ |
+| 背景錄音 | ✅ 較好 | ⚠️ ~15 秒後可能暫停 |
+| 推送通知 | ✅ | ❌ 不支援 |
+| 自動更新 | ✅ | ✅ |
+
+**開發時間：** 1-2 天  
+**費用：** $0
+
+### 階段 2：Capacitor 打包原生 APP
+
+Capacitor（由 Ionic 團隊開發）可以用原生 WebView 包裝現有程式碼，加上原生功能橋接。
+
+#### Android 建置（Windows 可直接 build ✅）
+
+1. 安裝 [Android Studio](https://developer.android.com/studio)
+2. `npm install @capacitor/core @capacitor/cli`
+3. `npx cap init "MeetSec AI" "com.meetsec.ai"`
+4. `npx cap add android`
+5. `npm run build && npx cap sync`
+6. `npx cap open android` → Android Studio 開啟 → Build APK
+
+#### iOS 建置（雲端 Mac 方案，無需購買 Mac）
+
+| 方案 | 費用 | 說明 |
+|------|------|------|
+| **Codemagic**（推薦） | 免費 500 分鐘/月 | CI/CD 雲端 Mac，可 build iOS |
+| **GitHub Actions** | 免費 2000 分鐘/月 | macOS runner 可 build Xcode 專案 |
+| **Ionic AppFlow** | $499/年起 | Ionic 官方雲端 build |
+| **MacinCloud** | ~$1/小時 | 租用雲端 Mac 遠端桌面 |
+
+> 推薦使用 **Codemagic**：設定一次後，每次 `git push` 就能自動產出 iOS IPA 與 Android APK。
+
+#### Capacitor 程式碼改動量
+
+| 現有技術 | Capacitor 中 | 狀態 |
+|----------|------------|------|
+| localStorage | 保持不變（WebView 支援） | ✅ 無需改動 |
+| Web Audio API | WebView 中正常運作 | ✅ 無需改動 |
+| WebSocket | WebView 中正常運作 | ✅ 無需改動 |
+| Gemini SDK | 直接可用 | ✅ 無需改動 |
+| Wake Lock | 用原生背景模式替代 | 🟡 小量調整 |
+
+### 階段 3：上架 App Store / Google Play
+
+#### 費用評估
+
+| 項目 | 費用 | 說明 |
+|------|------|------|
+| Apple Developer 帳號 | **$99/年** | iOS 上架必備 |
+| Google Play 帳號 | **$25 一次性** | Android 上架必備 |
+| Codemagic (iOS build) | **$0** | 免費額度 500 分鐘/月 |
+| Vercel (Web 版維持) | **$0** | 免費 |
+| **第一年合計** | **~$124** | |
+| **之後每年** | **~$99** | 只有 Apple 帳號年費 |
+
+#### 對比外包開發
+
+| 方案 | 費用 |
+|------|------|
+| 自己做 (PWA + Capacitor) | ~$124 |
+| 外包 React Native APP | $5,000 - $15,000 |
+| 外包 Flutter APP | $8,000 - $20,000 |
+
+### 預估時程
+
+| 階段 | 內容 | 時間 |
+|------|------|------|
+| PWA | manifest + Service Worker + 圖示 | 1-2 天 |
+| Capacitor Android | 安裝設定 + build + 測試 | 1 週 |
+| Capacitor iOS | Codemagic CI 設定 + build + 測試 | 1 週 |
+| 上架審核 | 開發者帳號 + 提交審核 | 1-2 週 |
+| **總計** | | **3-4 週** |
+
+### 建議策略
+
+1. **立即行動**：先做 PWA（零風險，1-2 天即可完成）
+2. **中期行動**：若 iOS 背景限制造成困擾，再用 Capacitor 包裝
+3. **上架**：確認穩定後再投入上架成本
+
+---
+
+## 16. 附錄：版本更新紀錄
 
 ### v2.3（2026 年 4 月）
 - 🔊 即時翻譯改用 Gemini Live API（延遲從 3-7 秒降至 1-2 秒）
