@@ -18,10 +18,11 @@
 8. [AI 會議助手面板（右側）](#8-ai-會議助手面板右側)
 9. [知識庫管理](#9-知識庫管理)
 10. [系統設定](#10-系統設定)
-11. [API Key 管理與配額策略](#11-api-key-管理與配額策略)
-12. [手機版操作指南](#12-手機版操作指南)
-13. [常見問題排除 (FAQ)](#13-常見問題排除-faq)
-14. [附錄：版本更新紀錄](#14-附錄版本更新紀錄)
+11. [API Key 申請完整教學](#11-api-key-申請完整教學)
+12. [API Key 管理與配額策略](#12-api-key-管理與配額策略)
+13. [手機版操作指南](#13-手機版操作指南)
+14. [常見問題排除 (FAQ)](#14-常見問題排除-faq)
+15. [附錄：版本更新紀錄](#15-附錄版本更新紀錄)
 
 ---
 
@@ -481,7 +482,186 @@
 
 ---
 
-## 11. API Key 管理與配額策略
+## 11. API Key 申請完整教學
+
+> 本章將手把手引導您取得 MeetSec-AI 所需的 API 金鑰。
+
+### 11.1 Google Gemini API Key（必要）
+
+> 這是 MeetSec-AI **所有語音功能的核心**，包含會議錄音、即時翻譯、小家人語音聊天都需要此金鑰。
+
+#### 前置條件
+
+- 一個 Google 帳號（Gmail 即可，免費）
+- 支援的瀏覽器（Chrome / Edge / Firefox）
+
+#### 申請步驟
+
+**步驟 1：前往 Google AI Studio**
+
+1. 開啟瀏覽器，前往 [https://aistudio.google.com/](https://aistudio.google.com/)
+2. 點擊右上角 **「Sign in」**，使用您的 Google 帳號登入。
+3. 若是首次使用，需同意 Google AI Studio 的服務條款。
+
+**步驟 2：進入 API Key 管理頁面**
+
+1. 登入後，在左側邊欄找到並點擊 **「Get API Key」**（在齒輪圖示附近）。
+2. 或直接前往 [https://aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+
+**步驟 3：建立新的 API Key**
+
+1. 在 API Key 頁面，點擊 **「Create API key」** 按鈕。
+2. 選擇一個 Google Cloud 專案：
+   - 如果您沒有專案，系統會自動建立一個新專案（**建議選此項**）。
+   - 如果您有現有專案，也可以選擇綁定到該專案。
+3. 點擊 **「Create API key in new project」**（建議）。
+4. 稍等幾秒，系統會產生一組 API Key。
+
+**步驟 4：複製 API Key**
+
+1. 畫面上會顯示您的 API Key（格式類似 `AIzaSyB...` 開頭的長字串）。
+2. 點擊右側的 **📋 複製按鈕**，將金鑰複製到剪貼簿。
+3. ⚠️ **重要**：妥善保管此金鑰，不要公開分享。任何人拿到此金鑰都能使用您的配額。
+
+**步驟 5：貼入 MeetSec-AI**
+
+1. 回到 MeetSec-AI，點擊左上角 **☰** 開啟側邊選單。
+2. 點擊 **「功能設定」** → **「系統設定」**。
+3. 找到 **「Google Gemini API Key」** 欄位。
+4. 將複製的 API Key 貼上（Ctrl+V 或長按貼上）。
+5. 點擊下方 **「測試錄音連線」** 按鈕。
+6. 若顯示 ✅ 綠色「連線成功」，恭喜，您已完成設定！
+
+#### 💡 Gemini API 小知識
+
+| 項目 | 說明 |
+|------|------|
+| **免費嗎？** | ✅ 是！Google 提供免費額度，足夠一般日常使用 |
+| **需要綁信用卡嗎？** | ❌ 不需要，免費方案無需任何付款資訊 |
+| **免費額度有多少？** | 每分鐘約 15 次請求（Gemini Flash），每日有總量限制 |
+| **超過額度會怎樣？** | 會暫時收到 429 錯誤，等待額度重置即可（通常 1-2 分鐘） |
+| **可以申請多把嗎？** | ✅ 可以！用不同 Google 帳號各申請一把，用逗號隔開填入 |
+| **Key 會過期嗎？** | 不會，除非您手動刪除或撤銷 |
+
+#### ⚠️ 常見申請問題
+
+| 問題 | 解決方案 |
+|------|----------|
+| 「Get API Key」按鈕找不到 | 確認已登入 Google 帳號，或直接前往 [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| 出現「API not available in your region」 | 部分地區可能受限，嘗試使用 VPN 或透過 Google Cloud Console 建立 |
+| 「Unable to create project」 | 您的 Google 帳號可能需要先建立 Google Cloud 專案，前往 [console.cloud.google.com](https://console.cloud.google.com/) 建立 |
+| 「Quota exceeded」已超過配額 | 免費額度用完了，等待重置（通常每分鐘重置）或使用另一把 Key |
+
+---
+
+### 11.2 OpenRouter API Key（選用 — AI 分析進階選項）
+
+> OpenRouter 是一個 AI 模型聚合平台，讓您可以使用 GPT-4o、Claude、Llama 等多種模型來進行 **會議分析與摘要**（不影響語音功能）。
+
+#### 什麼時候需要 OpenRouter？
+
+| 情境 | 需要嗎？ |
+|------|----------|
+| 只使用會議錄音、翻譯、小家人 | ❌ 不需要，Gemini API Key 就夠了 |
+| 想用 GPT-4o 產生會議摘要 | ✅ 需要 |
+| 想用 Claude 分析文件 | ✅ 需要 |
+| 想比較不同 AI 模型的分析品質 | ✅ 需要 |
+
+#### 前置條件
+
+- 一個 Email 帳號（用來註冊 OpenRouter）
+- 部分模型需要儲值餘額（有免費模型可用）
+
+#### 申請步驟
+
+**步驟 1：前往 OpenRouter 官網**
+
+1. 開啟 [https://openrouter.ai/](https://openrouter.ai/)
+2. 點擊右上角 **「Sign In」**。
+
+**步驟 2：註冊帳號**
+
+1. 您可以使用以下方式註冊：
+   - 📧 **Email 註冊**：輸入 Email + 設定密碼
+   - 🔗 **Google 帳號**：點擊「Continue with Google」一鍵登入
+   - 🔗 **GitHub 帳號**：點擊「Continue with GitHub」
+2. 完成註冊後，會進入 OpenRouter 的主控台。
+
+**步驟 3：建立 API Key**
+
+1. 登入後，點擊右上角的**個人頭像**或 **帳號名稱**。
+2. 在下拉選單中選擇 **「Keys」**。
+3. 或直接前往 [https://openrouter.ai/keys](https://openrouter.ai/keys)
+4. 點擊 **「Create Key」** 按鈕。
+5. 輸入一個名稱（例如：`MeetSec-AI`），方便日後識別。
+6. 點擊 **「Create」** 確認。
+7. 系統會顯示您的 API Key（格式為 `sk-or-v1-...` 開頭）。
+8. 📋 **立即複製**！此金鑰只會顯示一次，離開頁面後就無法再查看。
+
+**步驟 4：儲值餘額（選用）**
+
+1. 在 OpenRouter 主控台，點擊 **「Credits」** 或 **「Billing」**。
+2. 點擊 **「Add Credits」**。
+3. 輸入儲值金額（建議先儲 $5 嘗試）。
+4. 使用信用卡或其他支付方式完成付款。
+
+> 💡 **免費模型提示**：OpenRouter 上有部分免費模型可用（如 `meta-llama/llama-3-8b-instruct:free`），不需要儲值也能使用！在 MeetSec-AI 的模型選擇中，標有 `(Free)` 的模型即為免費。
+
+**步驟 5：貼入 MeetSec-AI**
+
+1. 回到 MeetSec-AI，開啟 **「功能設定」** → **「系統設定」**。
+2. 找到 **「AI 助理/分析設定」** 區塊。
+3. 在 **「AI 供應商」** 下拉選單中選擇 **「OpenRouter (Multi-Model)」**。
+4. 在出現的 **「OpenRouter API Key」** 欄位貼上您的金鑰。
+5. 在 **「AI 模型選擇」** 下拉選單中選擇想使用的模型。
+6. 點擊 **「測試連線」** 確認設定正確。
+
+#### 💡 OpenRouter 小知識
+
+| 項目 | 說明 |
+|------|------|
+| **完全免費嗎？** | 註冊免費，部分模型免費，進階模型需餘額 |
+| **支援哪些模型？** | GPT-4o、GPT-4o-mini、Claude 3.5 Sonnet、Llama 3、Mistral 等數十種 |
+| **計費方式** | 依使用的 Token 數量計費，每個模型價格不同 |
+| **餘額用完會怎樣？** | API 會回傳錯誤，切換回免費模型或 Gemini 即可 |
+| **可以同時用 Gemini 嗎？** | ✅ 當然！語音功能用 Gemini，分析功能用 OpenRouter，互不影響 |
+
+#### OpenRouter 推薦模型
+
+| 模型 | 用途 | 費用 | 推薦程度 |
+|------|------|------|----------|
+| `google/gemini-2.5-flash` | 快速分析，性價比高 | 極低 | ⭐⭐⭐⭐⭐ |
+| `openai/gpt-4o-mini` | 平衡品質與速度 | 低 | ⭐⭐⭐⭐ |
+| `openai/gpt-4o` | 最高品質分析 | 中 | ⭐⭐⭐⭐ |
+| `anthropic/claude-3.5-sonnet` | 長文分析強項 | 中 | ⭐⭐⭐⭐ |
+| `meta-llama/llama-3-8b-instruct:free` | 免費使用 | 免費 | ⭐⭐⭐ |
+
+---
+
+### 11.3 API Key 安全注意事項
+
+#### 🔒 金鑰安全守則
+
+1. **不要公開分享** — API Key 等同於密碼，任何人拿到都能使用您的配額。
+2. **不要存在公開的程式碼中** — 不要上傳包含 Key 的檔案到 GitHub 等公開平台。
+3. **定期輪換** — 若懷疑金鑰外洩，立即到對應平台撤銷並重新產生。
+4. **MeetSec-AI 的儲存方式** — 金鑰僅存在您的瀏覽器 localStorage 中，**不會上傳到任何伺服器**。清除瀏覽器資料會同時刪除金鑰。
+
+#### 撤銷（廢止）金鑰
+
+**Google Gemini**：
+1. 前往 [Google AI Studio → API Keys](https://aistudio.google.com/apikey)
+2. 找到要撤銷的 Key，點擊右側 **🗑️ 刪除按鈕**
+3. 確認刪除後，該 Key 立即失效
+
+**OpenRouter**：
+1. 前往 [OpenRouter → Keys](https://openrouter.ai/keys)
+2. 找到要撤銷的 Key，點擊 **「Revoke」** 或 **「Delete」**
+3. 確認後該 Key 立即失效
+
+---
+
+## 12. API Key 管理與配額策略
 
 ### 取得免費 API Key
 
@@ -516,7 +696,7 @@
 
 ---
 
-## 12. 手機版操作指南
+## 13. 手機版操作指南
 
 ### 首次使用
 
@@ -556,7 +736,7 @@ v2.3 新增了**螢幕保持常亮**功能：
 
 ---
 
-## 13. 常見問題排除 (FAQ)
+## 14. 常見問題排除 (FAQ)
 
 ### 連線問題
 
@@ -593,7 +773,7 @@ v2.3 新增了**螢幕保持常亮**功能：
 
 ---
 
-## 14. 附錄：版本更新紀錄
+## 15. 附錄：版本更新紀錄
 
 ### v2.3（2026 年 4 月）
 - 🔊 即時翻譯改用 Gemini Live API（延遲從 3-7 秒降至 1-2 秒）
