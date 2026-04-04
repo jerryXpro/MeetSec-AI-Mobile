@@ -130,10 +130,15 @@ export class GeminiLiveService {
 
       const audioConstraints = {
         echoCancellation: true,
-        deviceId: options.microphoneId ? { exact: options.microphoneId } : undefined
+        deviceId: options.microphoneId ? { ideal: options.microphoneId } : undefined
       };
 
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      try {
+        this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      } catch {
+        // Fallback: use default microphone (e.g. saved desktop mic ID not found on mobile)
+        this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } });
+      }
 
       let combinedStream = this.mediaStream;
       if (options.useSystemAudio) {

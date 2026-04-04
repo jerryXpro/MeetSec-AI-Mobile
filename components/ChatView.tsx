@@ -123,12 +123,17 @@ const ChatView: React.FC = () => {
                 await audioContextRef.current.resume();
             }
 
-            mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: true,
-                    deviceId: settings.selectedMicrophoneId ? { exact: settings.selectedMicrophoneId } : undefined
-                }
-            });
+            try {
+                mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        deviceId: settings.selectedMicrophoneId ? { ideal: settings.selectedMicrophoneId } : undefined
+                    }
+                });
+            } catch {
+                // Fallback: use default microphone
+                mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } });
+            }
 
             const config = {
                 responseModalities: [Modality.AUDIO],
