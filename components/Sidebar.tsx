@@ -391,7 +391,7 @@ const Sidebar: React.FC = () => {
                                 <div className="pt-2 px-2">
                                     <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 text-center">
                                         <p className="text-xs text-indigo-300 mb-2">💡 小提示</p>
-                                        <p className="text-xs text-zinc-400">目前為 <span className="text-white font-mono">v2.2 (Mobile Premium)</span> 版本。點擊上方的「功能設定」可管理知識庫與系統參數。</p>
+                                        <p className="text-xs text-zinc-400">目前為 <span className="text-white font-mono">v2.3 (Mobile Premium)</span> 版本。點擊上方的「功能設定」可管理知識庫與系統參數。</p>
                                     </div>
                                 </div>
                             </div>
