@@ -77,6 +77,9 @@ const ChatView: React.FC = () => {
     const nextStartTimeRef = useRef(0);
     const audioSourcesRef = useRef(new Set<AudioBufferSourceNode>());
 
+    // Model speaking state — used to suppress mic during AI playback
+    const modelSpeakingRef = useRef(false);
+
     // Transcription accumulation
     const currentInputRef = useRef('');
     const currentOutputRef = useRef('');
@@ -217,13 +220,18 @@ const ChatView: React.FC = () => {
             const inputSampleRate = audioContextRef.current?.sampleRate || 16000;
             const downsampledData = downsampleBuffer(inputData, inputSampleRate, 16000);
 
-            // Noise gate
+            // Noise gate — raise threshold significantly while model is speaking
+            // to prevent ambient noise / external voices from interrupting the reply
             let sum = 0;
             for (let i = 0; i < downsampledData.length; i++) {
                 sum += downsampledData[i] * downsampledData[i];
             }
             const rms = Math.sqrt(sum / downsampledData.length);
-            const threshold = settings.noiseThreshold ?? 0.002;
+            const baseThreshold = settings.noiseThreshold ?? 0.002;
+            // When model is speaking, require ~10x louder audio to pass through
+            // This prevents background noise from triggering interruptions
+            // while still allowing deliberate user speech to break through
+            const threshold = modelSpeakingRef.current ? Math.max(baseThreshold * 10, 0.06) : baseThreshold;
 
             let processedData = downsampledData;
             if (rms < threshold) {
@@ -288,6 +296,8 @@ const ChatView: React.FC = () => {
 
         // Turn complete — finalize messages
         if (message.serverContent?.turnComplete) {
+            // Model finished its turn — allow normal mic sensitivity again
+            modelSpeakingRef.current = false;
             if (currentInputRef.current.trim()) {
                 setMessages(prev => {
                     const last = prev[prev.length - 1];
@@ -316,33 +326,61 @@ const ChatView: React.FC = () => {
             const ctx = audioContextRef.current;
             nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
 
+            // Mark model as speaking — this suppresses mic sensitivity
+            modelSpeakingRef.current = true;
+
             const audioBytes = base64ToBytes(base64Audio);
             decodeAudioData(audioBytes, ctx, 24000, 1).then(audioBuffer => {
                 if (!activeRef.current) return;
                 const source = ctx.createBufferSource();
                 source.buffer = audioBuffer;
                 source.connect(ctx.destination);
-                source.addEventListener('ended', () => audioSourcesRef.current.delete(source));
+                source.addEventListener('ended', () => {
+                    audioSourcesRef.current.delete(source);
+                    // When the last audio source finishes, model is no longer speaking
+                    if (audioSourcesRef.current.size === 0) {
+                        modelSpeakingRef.current = false;
+                    }
+                });
                 source.start(nextStartTimeRef.current);
                 nextStartTimeRef.current += audioBuffer.duration;
                 audioSourcesRef.current.add(source);
             });
         }
 
-        // Interrupted
+        // Interrupted — stop audio playback but PRESERVE the content already spoken
         if (message.serverContent?.interrupted) {
             audioSourcesRef.current.forEach(source => { try { source.stop(); } catch {} });
             audioSourcesRef.current.clear();
             nextStartTimeRef.current = 0;
+            modelSpeakingRef.current = false;
+
+            // Preserve the partial AI message that was already spoken/displayed
+            // Instead of removing it, finalize it with a truncation marker
+            if (currentOutputRef.current.trim()) {
+                const interruptedText = currentOutputRef.current;
+                setMessages(prev => {
+                    const last = prev[prev.length - 1];
+                    if (last && last.role === 'ai' && last.isPartial) {
+                        return [...prev.slice(0, -1), {
+                            ...last,
+                            text: interruptedText + ' ⋯',
+                            isPartial: false,
+                        }];
+                    }
+                    return prev;
+                });
+            } else {
+                // No content yet — just remove the empty partial
+                setMessages(prev => {
+                    const last = prev[prev.length - 1];
+                    if (last && last.role === 'ai' && last.isPartial) {
+                        return prev.slice(0, -1);
+                    }
+                    return prev;
+                });
+            }
             currentOutputRef.current = '';
-            // Remove the partial AI message
-            setMessages(prev => {
-                const last = prev[prev.length - 1];
-                if (last && last.role === 'ai' && last.isPartial) {
-                    return prev.slice(0, -1);
-                }
-                return prev;
-            });
         }
     }, []);
 
@@ -360,6 +398,7 @@ const ChatView: React.FC = () => {
         scriptProcessorRef.current = null;
         audioContextRef.current = null;
         nextStartTimeRef.current = 0;
+        modelSpeakingRef.current = false;
     }, []);
 
     const disconnectLive = useCallback(() => {
