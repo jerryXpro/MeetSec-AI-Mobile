@@ -120,8 +120,8 @@ const transcribeWithGemini = async (file: File, settings: AppSettings): Promise<
   // Rotation Logic
   let lastError = null;
 
-  // Try Primary Model (gemini-2.0-flash) with all keys
-  const primaryModel = settings.geminiTranscriptionModel || 'gemini-2.0-flash';
+  // Try Primary Model (gemini-2.5-flash) with all keys
+  const primaryModel = settings.geminiTranscriptionModel || 'gemini-2.5-flash';
 
   for (const key of keys) {
     try {

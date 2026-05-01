@@ -172,7 +172,7 @@ export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await serviceRef.current?.connect({
       apiKey: settings.apiKeys.gemini,
       appName: settings.appName,
-      model: settings.geminiLiveModel || 'gemini-2.5-flash-native-audio-preview-12-2025',
+      model: settings.geminiLiveModel || 'gemini-3.1-flash-live-preview',
       voiceName: settings.voiceName,
       systemInstruction: `你是 ${settings.appName} 專業會議助手。`,
       previousContext: aggregatedContext,
@@ -270,6 +270,13 @@ export const LiveProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const uploadFile = async (file: File) => {
     if (!settings.apiKeys.gemini) {
       setError("請先設定 Gemini API Key");
+      return;
+    }
+
+    // File size limit (15MB) — Gemini inline data max ~20MB, Base64 adds ~33% overhead
+    const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
+    if (file.size > MAX_AUDIO_SIZE) {
+      setError(`音檔過大 (${(file.size / 1024 / 1024).toFixed(1)}MB)，請上傳小於 15MB 的音檔。建議使用 MP3 或 AAC 等壓縮格式。`);
       return;
     }
 

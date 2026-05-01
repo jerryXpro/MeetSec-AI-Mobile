@@ -678,7 +678,7 @@ const Sidebar: React.FC = () => {
                                                                 }
                                                                 setIsTesting(true);
                                                                 setTestResult(null);
-                                                                const result = await testGeminiConnection(settings.apiKeys.gemini, 'gemini-2.0-flash');
+                                                                const result = await testGeminiConnection(settings.apiKeys.gemini, 'gemini-2.5-flash');
                                                                 setTestResult(result);
                                                                 setIsTesting(false);
                                                             }}
@@ -798,11 +798,9 @@ const Sidebar: React.FC = () => {
                                                                 value={settings.openrouterModel}
                                                             >
                                                                 <option value="" disabled>-- 快速選擇模型 --</option>
-                                                                <option value="google/gemini-2.0-flash-exp:free">Google Gemini 2.0 Flash (Free)</option>
-                                                                <option value="google/gemini-2.0-pro-exp-02-05:free">Google Gemini 2.0 Pro (Free)</option>
-                                                                <option value="google/gemini-2.0-flash-lite-preview-02-05:free">Google Gemini 2.0 Flash Lite (Free)</option>
+                                                                <option value="google/gemini-2.5-flash:free">Google Gemini 2.5 Flash (Free)</option>
+                                                                <option value="google/gemini-2.5-pro">Google Gemini 2.5 Pro</option>
                                                                 <option value="meta-llama/llama-3-8b-instruct:free">Meta Llama 3 8B (Free)</option>
-                                                                <option value="microsoft/phi-3-medium-128k-instruct:free">Microsoft Phi-3 (Free)</option>
                                                                 <option value="openai/gpt-4o">OpenAI GPT-4o</option>
                                                                 <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
                                                                 <option value="deepseek/deepseek-chat">DeepSeek Chat</option>
@@ -814,7 +812,7 @@ const Sidebar: React.FC = () => {
                                                                 value={settings.openrouterModel || ''}
                                                                 onChange={(e) => updateSettings({ openrouterModel: e.target.value })}
                                                                 className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none placeholder-zinc-600"
-                                                                placeholder="例如: google/gemini-2.0-pro-exp-02-05:free"
+                                                                placeholder="例如: google/gemini-2.5-flash:free"
                                                             />
                                                             <p className="text-[0.7em] text-zinc-500 mt-1">
                                                                 * 支援 OpenRouter 所有模型 ID。上方選單僅列出常用項目。
@@ -830,7 +828,7 @@ const Sidebar: React.FC = () => {
                                                                     }
                                                                     setIsTesting(true);
                                                                     setTestResult(null);
-                                                                    const result = await testOpenRouterConnection(settings.apiKeys.openrouter, settings.openrouterModel || 'google/gemini-2.0-flash-exp:free');
+                                                                    const result = await testOpenRouterConnection(settings.apiKeys.openrouter, settings.openrouterModel || 'google/gemini-2.5-flash:free');
                                                                     setTestResult(result);
                                                                     setIsTesting(false);
                                                                 }}
@@ -862,9 +860,16 @@ const Sidebar: React.FC = () => {
                                                                 onChange={(e) => updateSettings({ geminiAnalysisModel: e.target.value })}
                                                                 className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-[0.95em] focus:border-primary outline-none"
                                                             >
-                                                                <option value="gemini-2.5-pro">Gemini 2.5 Pro ⭐</option>
-                                                                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                                                                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                                                                <optgroup label="Gemini 3.x 系列（最新）">
+                                                                    <option value="gemini-3.1-pro">Gemini 3.1 Pro ⭐ 最強推理</option>
+                                                                    <option value="gemini-3-flash">Gemini 3 Flash 🚀 快速均衡</option>
+                                                                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite ⚡ 極速省量</option>
+                                                                </optgroup>
+                                                                <optgroup label="Gemini 2.5 系列（穩定）">
+                                                                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                                                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                                                    <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                                                                </optgroup>
                                                             </select>
                                                         </div>
 
@@ -878,7 +883,7 @@ const Sidebar: React.FC = () => {
                                                                     setIsTesting(true);
                                                                     setTestResult(null);
                                                                     const firstKey = settings.apiKeys.gemini.split(',')[0].trim();
-                                                                    const result = await testGeminiConnection(firstKey, settings.geminiAnalysisModel || 'gemini-2.0-flash');
+                                                                    const result = await testGeminiConnection(firstKey, settings.geminiAnalysisModel || 'gemini-2.5-flash');
                                                                     setTestResult(result);
                                                                     setIsTesting(false);
                                                                 }}

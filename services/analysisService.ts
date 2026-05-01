@@ -246,7 +246,7 @@ async function callLLM(prompt: string, settings: AppSettings): Promise<string> {
     if (settings.provider === 'openrouter') {
         if (!settings.apiKeys.openrouter) throw new Error("請先在設定中輸入 OpenRouter API Key。");
 
-        const model = settings.openrouterModel || 'google/gemini-2.0-flash-exp:free';
+        const model = settings.openrouterModel || 'google/gemini-2.5-flash:free';
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
@@ -342,7 +342,7 @@ async function callLLM(prompt: string, settings: AppSettings): Promise<string> {
         };
 
         // 1. Try Primary Model (user setting or default 2.0-flash)
-        const primaryModel = settings.geminiAnalysisModel || 'gemini-2.0-flash';
+        const primaryModel = settings.geminiAnalysisModel || 'gemini-2.5-flash';
         let result = await tryKeysForModel(primaryModel);
         if (result) return result;
 

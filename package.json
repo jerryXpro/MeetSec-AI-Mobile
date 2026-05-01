@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.35.0",
+    "@google/genai": "^1.51.0",
     "buffer": "^6.0.3",
     "jspdf": "2.5.1",
     "lamejs": "^1.2.1",

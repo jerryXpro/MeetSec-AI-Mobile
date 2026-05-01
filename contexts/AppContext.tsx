@@ -78,10 +78,10 @@ const defaultSettings: AppSettings = {
   userName: 'User',
   provider: 'gemini',
   apiKeys: { gemini: '', openrouter: '' },
-  geminiTranscriptionModel: 'gemini-2.0-flash',
-  geminiAnalysisModel: 'gemini-2.5-pro',
-  geminiLiveModel: 'gemini-2.5-flash-native-audio-preview-12-2025',
-  openrouterModel: 'google/gemini-2.0-flash-lite-preview-02-05:free',
+  geminiTranscriptionModel: 'gemini-2.5-flash',
+  geminiAnalysisModel: 'gemini-2.5-flash',
+  geminiLiveModel: 'gemini-3.1-flash-live-preview',
+  openrouterModel: 'google/gemini-2.5-flash:free',
   customBaseUrl: 'http://localhost:11434/v1',
   customApiKey: '',
   customModelId: 'llama3',
@@ -141,33 +141,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!merged.assistantWidth) merged.assistantWidth = 384;
       if (!merged.presetCommands) merged.presetCommands = defaultPresets; // Init presets if missing
 
-    // Auto-fix deprecated models
+    // Auto-fix deprecated models (remove anything below 2.5)
       if (
         merged.geminiTranscriptionModel.includes('gemini-1.5') || 
         merged.geminiTranscriptionModel.includes('gemini-2.0') ||
-        merged.geminiTranscriptionModel.includes('gemini-3.') ||
         merged.geminiTranscriptionModel === 'gemini-2.5-flash-preview-04-17'
       ) {
         merged.geminiTranscriptionModel = 'gemini-2.5-flash';
       }
       if (merged.geminiAnalysisModel.includes('gemini-1.5') ||
         merged.geminiAnalysisModel.includes('gemini-2.0') ||
-        merged.geminiAnalysisModel.includes('gemini-3.') ||
         merged.geminiAnalysisModel === 'gemini-2.5-flash-preview-04-17' ||
         merged.geminiAnalysisModel === 'gemini-2.5-pro-preview-03-25') {
         merged.geminiAnalysisModel = 'gemini-2.5-flash';
       }
       // Live models - whitelist only known valid Live API models
       const validLiveModels = [
+        'gemini-3.1-flash-live-preview',
+        'gemini-live-2.5-flash-native-audio',
         'gemini-2.5-flash-native-audio-preview-12-2025',
-        'gemini-2.5-flash-native-audio-preview-09-2025',
       ];
-      if (merged.geminiLiveModel === 'gemini-3.1-flash-live-preview') {
-        merged.geminiLiveModel = 'gemini-2.5-flash-native-audio-preview-12-2025';
-      }
       if (!merged.geminiLiveModel || !validLiveModels.includes(merged.geminiLiveModel)) {
         console.warn(`[AppContext] Invalid Live model "${merged.geminiLiveModel}", resetting to default.`);
-        merged.geminiLiveModel = 'gemini-2.5-flash-native-audio-preview-12-2025';
+        merged.geminiLiveModel = 'gemini-3.1-flash-live-preview';
       }
       return merged;
     } catch (e) { return defaultSettings; }

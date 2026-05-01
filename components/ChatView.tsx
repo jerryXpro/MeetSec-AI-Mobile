@@ -156,7 +156,7 @@ const ChatView: React.FC = () => {
             };
 
             const sessionPromise = ai.live.connect({
-                model: settings.geminiLiveModel || 'gemini-2.5-flash-native-audio-preview-12-2025',
+                model: settings.geminiLiveModel || 'gemini-3.1-flash-live-preview',
                 config: config,
                 callbacks: {
                     onopen: async () => {
